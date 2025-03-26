@@ -10,15 +10,10 @@ import (
 	"math/big"
 )
 
-func FetchLatestN(client *ethclient.Client, contractAddr common.Address, queryRoundNum, queryWindow int, resultChan chan QueryResult) error {
+func FetchLatestN(client *ethclient.Client, contractAddr common.Address, lastRoundNum, lastCheckBlock, querySize uint64, resultChan chan QueryResult) error {
 	aggr, err := ocr2aggregator.NewAccessControlledOCR2Aggregator(contractAddr, client)
 	if err != nil {
 		return errors.Wrap(err, "failed to create OCR2 aggregator instance")
-	}
-
-	desc, err := aggr.Description(nil)
-	if err != nil {
-		return errors.Wrap(err, "failed to get description")
 	}
 
 	latestRoundData, err := aggr.LatestRoundData(nil)
@@ -26,40 +21,26 @@ func FetchLatestN(client *ethclient.Client, contractAddr common.Address, queryRo
 		return errors.Wrap(err, "failed to get latestRoundData")
 	}
 
-	latestBlock, err := client.BlockNumber(context.Background())
+	block, err := client.BlockNumber(context.Background())
 	if err != nil {
-		return errors.Wrap(err, "failed to get latest block number")
+		return errors.Wrap(err, "failed to get block number")
 	}
 
-	var roundIds []uint32
-	if latestRoundData.RoundId.Uint64() <= uint64(queryRoundNum) {
-		queryRoundNum = int(latestRoundData.RoundId.Uint64())
-	}
-	for i := int(latestRoundData.RoundId.Uint64()); i > int(latestRoundData.RoundId.Uint64())-queryRoundNum; i-- {
-		roundIds = append(roundIds, uint32(i))
-	}
+	startRound := latestRoundData.RoundId.Uint64() - uint64(lastRoundNum)
+	endRound := latestRoundData.RoundId.Uint64()
 
-	startBlock := big.NewInt(int64(latestBlock - uint64(queryWindow)))
-	endBlock := big.NewInt(int64(latestBlock))
+	startBlock := big.NewInt(int64(block - lastCheckBlock))
+	endBlock := big.NewInt(int64(block))
 
-	startBlock, err = getBlockNumberByRoundId(client, aggr, int64(roundIds[queryRoundNum-1]))
-	if err != nil {
-		return errors.Wrapf(err, "failed to get latest block number")
-	}
+	log.Debugf("%s: fetching events from block %d to %d", contractAddr.Hex(), startBlock, endBlock)
 
-	transmittersMap := make(map[[32]byte][]common.Address)
-	if latestCfgDetail, err := aggr.LatestConfigDetails(nil); err == nil {
-		if txs, err := aggr.GetTransmitters(nil); err == nil {
-			transmittersMap[latestCfgDetail.ConfigDigest] = txs
-		}
-	}
-	log.Debugf("%s (%s) : latest round data: %s(%v), start: %d, end: %d",
-		contractAddr,
-		desc,
-		latestRoundData.RoundId,
-		latestRoundData.StartedAt,
+	return fetch(
+		aggr,
 		startBlock,
-		endBlock)
-
-	return Fetch(client, contractAddr, int64(roundIds[len(roundIds)-1]), int64(roundIds[0]), int64(queryWindow), resultChan)
+		endBlock,
+		int64(startRound),
+		int64(endRound),
+		int64(querySize),
+		resultChan,
+	)
 }

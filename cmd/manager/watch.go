@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 )
 
 var contractRegex = regexp.MustCompile(`contract (0x[a-fA-F0-9]{40})`)
@@ -27,8 +26,8 @@ var watchCmd = &cli.Command{
 		var (
 			transmitterInputs = strings.Split(args[0], ",")
 			transmitters      []common.Address
-			lastCheckRound    = 5
-			lastDayN          = 7
+			lastCheckRound    uint64 = 5
+			lastCheckBlock    uint64 = QUERY_WINDOW
 			err               error
 		)
 
@@ -39,13 +38,13 @@ var watchCmd = &cli.Command{
 		log.Infof("🔍 Watching %d Transmitter(s): %v", len(transmitters), transmitterInputs)
 
 		if len(args) >= 2 {
-			lastCheckRound, err = strconv.Atoi(args[1])
+			lastCheckRound, err = strconv.ParseUint(args[1], 10, 64)
 			if err != nil {
 				cfg.Error(fmt.Errorf("❌ failed to parse last check round: %w", err))
 			}
 
 			if len(args) >= 3 {
-				lastDayN, err = strconv.Atoi(args[2])
+				lastCheckBlock, err = strconv.ParseUint(args[2], 10, 64)
 				if err != nil {
 					cfg.Error(fmt.Errorf("❌ failed to parse last check days: %w", err))
 				}
@@ -58,10 +57,8 @@ var watchCmd = &cli.Command{
 		}
 
 		var (
-			wg       sync.WaitGroup
-			results  = make(chan JobResult, len(ocr2Jobs)*len(transmitters))
-			now      = time.Now()
-			timeSpan = time.Hour * 24 * time.Duration(lastDayN)
+			wg      sync.WaitGroup
+			results = make(chan JobResult, len(ocr2Jobs)*len(transmitters))
 		)
 
 		for i := 0; i < len(ocr2Jobs); i++ {
@@ -85,7 +82,7 @@ var watchCmd = &cli.Command{
 					defer wg.Done()
 					resultChan := make(chan intra.QueryResult)
 
-					err := intra.FetchLatestN(cfg.Network, common.HexToAddress(contractAddr), lastCheckRound, QUERY_WINDOW, resultChan)
+					err := intra.FetchLatestN(cfg.Network, common.HexToAddress(contractAddr), lastCheckRound, lastCheckBlock, QUERY_WINDOW, resultChan)
 					if err != nil {
 						log.Error(err.Error())
 						results <- JobResult{Status: ErrorJobStatus, Job: jobName, Transmitter: transmitter.Hex()}
@@ -98,9 +95,7 @@ var watchCmd = &cli.Command{
 
 					for result := range resultChan {
 						for _, r := range result.Output {
-							if r.Timestamp.After(now.Add(-timeSpan)) {
-								isActive = true
-							}
+							isActive = true
 
 							for _, trans := range r.Transmitters {
 								if strings.EqualFold(trans.Address.Hex(), transmitter.Hex()) {

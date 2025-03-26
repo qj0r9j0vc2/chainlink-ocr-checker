@@ -18,7 +18,7 @@ import (
 
 const (
 	defaultBlockInterval = 10
-	maxConcurrency       = 16 // Limit for concurrent RPC calls
+	maxConcurrency       = 30 // Limit for concurrent RPC calls
 )
 
 type QueryResult struct {
@@ -27,7 +27,7 @@ type QueryResult struct {
 	Err        error
 }
 
-func Fetch(client *ethclient.Client, contractAddr common.Address, startRound, endRound, querySize int64, resultChan chan QueryResult) error {
+func FetchPeriod(client *ethclient.Client, contractAddr common.Address, startRound, endRound, querySize int64, resultChan chan QueryResult) error {
 	aggr, err := ocr2aggregator.NewAccessControlledOCR2Aggregator(contractAddr, client)
 	if err != nil {
 		return errors.Wrap(err, "failed to create OCR2 aggregator instance")
@@ -73,12 +73,24 @@ func Fetch(client *ethclient.Client, contractAddr common.Address, startRound, en
 	if err = <-errs; err != nil {
 		return err
 	}
+	log.Debugf("%s: fetching events from block %d to %d", contractAddr.Hex(), startBlock, endBlock)
+
+	return fetch(
+		aggr,
+		startBlock,
+		endBlock,
+		startRound,
+		endRound,
+		querySize,
+		resultChan,
+	)
+}
+
+func fetch(aggr *ocr2aggregator.AccessControlledOCR2Aggregator, startBlock, endBlock *big.Int, startRound, endRound, querySize int64, resultChan chan QueryResult) error {
 
 	if endBlock.Cmp(startBlock) < 0 {
 		return errors.New("invalid block range: startBlock > endBlock")
 	}
-
-	log.Debugf("%s: fetching events from block %d to %d", contractAddr.Hex(), startBlock, endBlock)
 
 	var roundIds []uint32
 	for i := startRound; i <= endRound; i++ {

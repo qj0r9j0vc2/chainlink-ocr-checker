@@ -26,7 +26,7 @@ FOUND=$(jq -r '.result[] | select(.status == "FOUND_JOB_STATUS") | "- " + .job' 
 STALE=$(jq -r '.result[] | select(.status == "STALE_JOB_STATUS") | "- " + .job' "$INPUT_JSON_FILE")
 MISSING=$(jq -r '.result[] | select(.status == "MISSING_JOB_STATUS") | "- " + .job' "$INPUT_JSON_FILE")
 
-#post_to_slack "🟢 Found Jobs" "$FOUND"
-post_to_slack "🟡 Stale Jobs" "$STALE"
-post_to_slack "🔴 Missing Jobs" "$MISSING"
+post_to_slack "🟢 Found Jobs" "$FOUND"
+post_to_slack "🟡 Stale Jobs $2" "$STALE"
+post_to_slack "🔴 Missing Jobs $2" "$MISSING"
 
