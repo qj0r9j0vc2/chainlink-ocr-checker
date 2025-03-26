@@ -24,6 +24,17 @@ var rootCmd = &cli.Command{
 	Long:    `ocr-checker`,
 	Version: fmt.Sprintf("Version: %s\nCommit: %s\nDate: %s", version.AppVersion, version.GitCommit, version.BuildDate),
 	PersistentPreRun: func(cmd *cli.Command, args []string) {
+
+		err := config.InitializeViper()
+		utils.OrShutdown(err)
+
+		cfg, err = config.NewConfig(configFilePath)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		err = cfg.LoadConfig()
+		utils.OrShutdown(err)
+
 		if logLevel != "" {
 			cfg.LogLevel = logLevel
 		}
@@ -35,29 +46,17 @@ var rootCmd = &cli.Command{
 		}
 
 		log.SetLevel(utils.LogLevel(cfg.LogLevel))
+
 	},
 }
 
 func init() {
-	err := config.InitializeViper()
-	utils.OrShutdown(err)
 
 	rootCmd.PersistentFlags().StringVarP(&logLevel, config.LOG_LEVEL_FLAG, config.SHORT_LOG_LEVEL_FLAG, "", "Logging level (error, warn, info, debug).")
 	rootCmd.PersistentFlags().StringVarP(&output, config.OUTPUT_TYPE_FLAG, config.SHORT_OUTPUT_TYPE_FLAG, "", "Output type (text, json).")
 	rootCmd.PersistentFlags().StringVarP(&configFilePath, config.CONFIG_FILE_FLAG, config.SHORT_CONFIG_FILE_FLAG, "config.toml", "Path to the configuration file (default: config.toml).")
 
-	if err = rootCmd.Execute(); err != nil {
-		log.Fatal(err)
-	}
-
 	rootCmd.AddCommand(fetchCmd, watchCmd, parseCmd)
-
-	cfg, err = config.NewConfig(configFilePath)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	err = cfg.LoadConfig()
-	utils.OrShutdown(err)
 
 }
 
