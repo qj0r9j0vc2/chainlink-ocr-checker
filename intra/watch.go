@@ -24,8 +24,6 @@ func FetchLatestN(client *ethclient.Client, contractAddr common.Address, queryRo
 		return nil, errors.Wrap(err, "failed to get description")
 	}
 
-	log.Debugf("%s: %s", contractAddr, desc)
-
 	latestRoundData, err := aggr.LatestRoundData(nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get latestRoundData")
@@ -37,12 +35,20 @@ func FetchLatestN(client *ethclient.Client, contractAddr common.Address, queryRo
 	}
 
 	var roundIds []uint32
-	for i := latestRoundData.RoundId.Uint64(); i > latestRoundData.RoundId.Uint64()-uint64(queryRoundNum); i-- {
+	if latestRoundData.RoundId.Uint64() <= uint64(queryRoundNum) {
+		queryRoundNum = int(latestRoundData.RoundId.Uint64())
+	}
+	for i := int(latestRoundData.RoundId.Uint64()); i > int(latestRoundData.RoundId.Uint64())-queryRoundNum; i-- {
 		roundIds = append(roundIds, uint32(i))
 	}
 
 	startBlock := big.NewInt(int64(latestBlock - uint64(queryWindow)))
 	endBlock := big.NewInt(int64(latestBlock))
+
+	startBlock, err = getBlockNumberByRoundId(client, aggr, int64(roundIds[queryRoundNum-1]))
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get latest block number")
+	}
 
 	transmittersMap := make(map[[32]byte][]common.Address)
 	if latestCfgDetail, err := aggr.LatestConfigDetails(nil); err == nil {
@@ -50,6 +56,13 @@ func FetchLatestN(client *ethclient.Client, contractAddr common.Address, queryRo
 			transmittersMap[latestCfgDetail.ConfigDigest] = txs
 		}
 	}
+	log.Debugf("%s (%s) : latest round data: %s(%v), start: %d, end: %d",
+		contractAddr,
+		desc,
+		latestRoundData.RoundId,
+		latestRoundData.StartedAt,
+		startBlock,
+		endBlock)
 
 	sem := make(chan struct{}, maxConcurrency)
 	var mu sync.Mutex

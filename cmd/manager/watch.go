@@ -19,7 +19,7 @@ var contractRegex = regexp.MustCompile(`contract (0x[a-fA-F0-9]{40})`)
 var watchCmd = &cli.Command{
 	Use:     "watch",
 	Aliases: []string{"w"},
-	Example: "ocr-checker watch [transmitter1,transmitter2,...] [last_transmission_N] [last_Day_N]",
+	Example: "ocr-checker watch [transmitter1,transmitter2,...] [last_N] [last_Day_N]",
 	Short:   "Watch Transmitter(s) across OCR2 jobs",
 	Long:    `Watch if specific Transmitter(s) exist in recent OCR2 rounds`,
 	Args:    cli.RangeArgs(1, 3),
