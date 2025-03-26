@@ -18,7 +18,7 @@ import (
 
 const (
 	defaultBlockInterval = 10
-	maxConcurrency       = 50 // Limit for concurrent RPC calls
+	maxConcurrency       = 16 // Limit for concurrent RPC calls
 )
 
 type QueryResult struct {
@@ -88,8 +88,8 @@ func Fetch(client *ethclient.Client, contractAddr common.Address, startRound, en
 	transmittersMap := make(map[[32]byte][]common.Address)
 	latestCfgDetail, err := aggr.LatestConfigDetails(nil)
 	if err == nil {
-		if txs, err := aggr.GetTransmitters(nil); err == nil {
-			transmittersMap[latestCfgDetail.ConfigDigest] = txs
+		if transmitters, err := aggr.GetTransmitters(nil); err == nil {
+			transmittersMap[latestCfgDetail.ConfigDigest] = transmitters
 		}
 	}
 
@@ -115,8 +115,14 @@ func Fetch(client *ethclient.Client, contractAddr common.Address, startRound, en
 				log.Warnf("failed to filter config (block %d-%d): %v", start, end, err)
 				return
 			}
+			if iter.Error() != nil {
+				log.Warnf("failed to filter config (block %d-%d): %v", start, end, iter.Error())
+				return
+			}
+
 			for iter.Next() {
 				transmittersMap[iter.Event.ConfigDigest] = iter.Event.Transmitters
+				log.Infof("%x : %v", iter.Event.ConfigDigest, iter.Event.Transmitters)
 			}
 			_ = iter.Close()
 		}(start, end)

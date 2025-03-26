@@ -16,7 +16,6 @@ import (
 	"math/big"
 	"net/url"
 	"os"
-	"strings"
 	"time"
 )
 
@@ -88,10 +87,6 @@ func (c *Config) LoadConfig() error {
 		c.OutputFormat = TextOutputFormat
 	}
 
-	c.RawContractAddress, _ = strings.CutPrefix(c.RawContractAddress, "0x")
-	contract := common.HexToAddress(c.RawContractAddress)
-	c.ContractAddress = &contract
-
 	if _, err = url.ParseRequestURI(c.RpcAddr); err != nil {
 		return errors.Wrapf(err, "invalid RPC address %s", c.RpcAddr)
 	}
@@ -147,9 +142,6 @@ type Config struct {
 
 	FlushEveryN int `mapstructure:"flush_every"`
 
-	RawContractAddress string `mapstructure:"contract"`
-	ContractAddress    *common.Address
-
 	Database Database `mapstructure:"database"`
 
 	Repository *repository.Repository
@@ -191,17 +183,11 @@ func (c *Config) isValid() error {
 	if c.OutputFormat != TextOutputFormat && c.OutputFormat != JSONOutputFormat {
 		return fmt.Errorf("invalid output format: %s", c.OutputFormat)
 	}
-	if c.ContractAddress == nil {
-		return errors.New("contract address is required")
-	}
 	if c.ChainId == 0 {
 		return errors.New("chain_id is required")
 	}
 	if c.RpcAddr == "" {
 		return errors.New("rpc_addr is required")
-	}
-	if c.RawContractAddress == "" {
-		return errors.New("contract_address is required")
 	}
 	if c.FlushEveryN < 1 {
 		return errors.New("flush_every must be at least 1")
