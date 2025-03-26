@@ -43,7 +43,7 @@ var fetchCmd = &cli.Command{
 
 		resultChan := make(chan intra.QueryResult)
 
-		err := intra.Fetch(cfg.Network, contractAddr, int64(startRound), int64(endRound), 5000, resultChan)
+		err := intra.Fetch(cfg.Network, contractAddr, int64(startRound), int64(endRound), QUERY_WINDOW, resultChan)
 		if err != nil {
 			cfg.Error(err)
 		}

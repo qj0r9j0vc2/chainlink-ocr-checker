@@ -37,7 +37,7 @@ func Fetch(client *ethclient.Client, contractAddr common.Address, startRound, en
 	if err != nil {
 		return errors.Wrap(err, "failed to get description")
 	}
-	log.Infof("%s: %s", contractAddr, desc)
+	log.Debugf("%s: %s", contractAddr, desc)
 
 	var (
 		startBlock *big.Int
@@ -78,7 +78,7 @@ func Fetch(client *ethclient.Client, contractAddr common.Address, startRound, en
 		return errors.New("invalid block range: startBlock > endBlock")
 	}
 
-	log.Printf("Fetching events from block %d to %d", startBlock, endBlock)
+	log.Debugf("%s: fetching events from block %d to %d", contractAddr.Hex(), startBlock, endBlock)
 
 	var roundIds []uint32
 	for i := startRound; i <= endRound; i++ {

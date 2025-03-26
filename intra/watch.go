@@ -2,36 +2,33 @@ package intra
 
 import (
 	"context"
-	"math/big"
-	"sync"
-
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	ocr2aggregator "github.com/smartcontractkit/libocr/gethwrappers2/accesscontrolledocr2aggregator"
+	"math/big"
 )
 
-func FetchLatestN(client *ethclient.Client, contractAddr common.Address, queryRoundNum, queryWindow int) (*QueryResult, error) {
+func FetchLatestN(client *ethclient.Client, contractAddr common.Address, queryRoundNum, queryWindow int, resultChan chan QueryResult) error {
 	aggr, err := ocr2aggregator.NewAccessControlledOCR2Aggregator(contractAddr, client)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to create OCR2 aggregator instance")
+		return errors.Wrap(err, "failed to create OCR2 aggregator instance")
 	}
 
 	desc, err := aggr.Description(nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get description")
+		return errors.Wrap(err, "failed to get description")
 	}
 
 	latestRoundData, err := aggr.LatestRoundData(nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get latestRoundData")
+		return errors.Wrap(err, "failed to get latestRoundData")
 	}
 
 	latestBlock, err := client.BlockNumber(context.Background())
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get latest block number")
+		return errors.Wrap(err, "failed to get latest block number")
 	}
 
 	var roundIds []uint32
@@ -47,7 +44,7 @@ func FetchLatestN(client *ethclient.Client, contractAddr common.Address, queryRo
 
 	startBlock, err = getBlockNumberByRoundId(client, aggr, int64(roundIds[queryRoundNum-1]))
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get latest block number")
+		return errors.Wrapf(err, "failed to get latest block number")
 	}
 
 	transmittersMap := make(map[[32]byte][]common.Address)
@@ -64,49 +61,5 @@ func FetchLatestN(client *ethclient.Client, contractAddr common.Address, queryRo
 		startBlock,
 		endBlock)
 
-	sem := make(chan struct{}, maxConcurrency)
-	var mu sync.Mutex
-	var wg sync.WaitGroup
-
-	for from := new(big.Int).Set(startBlock); from.Cmp(endBlock) <= 0; {
-		to := new(big.Int).Add(from, big.NewInt(int64(queryWindow-1)))
-		if to.Cmp(endBlock) > 0 {
-			to.Set(endBlock)
-		}
-
-		start := from.Uint64()
-		end := to.Uint64()
-
-		sem <- struct{}{}
-		wg.Add(1)
-		go func(start, end uint64) {
-			defer wg.Done()
-			defer func() { <-sem }()
-
-			iter, err := aggr.FilterConfigSet(&bind.FilterOpts{
-				Start: start,
-				End:   &end,
-			})
-			if err != nil {
-				log.Warnf("failed to filter config for round %d: %v", start, err)
-				return
-			}
-			for iter.Next() {
-				mu.Lock()
-				transmittersMap[iter.Event.ConfigDigest] = iter.Event.Transmitters
-				mu.Unlock()
-			}
-			_ = iter.Close()
-		}(start, end)
-
-		from.Add(to, big.NewInt(1))
-	}
-	wg.Wait()
-
-	output, err := filterAndCaptureTransmissions(aggr, startBlock.Uint64(), endBlock.Uint64(), roundIds, transmittersMap)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to capture transmissions")
-	}
-
-	return &QueryResult{Output: output}, nil
+	return Fetch(client, contractAddr, int64(roundIds[len(roundIds)-1]), int64(roundIds[0]), int64(queryWindow), resultChan)
 }

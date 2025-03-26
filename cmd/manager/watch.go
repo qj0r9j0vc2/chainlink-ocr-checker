@@ -83,8 +83,9 @@ var watchCmd = &cli.Command{
 				wg.Add(1)
 				go func(contractAddr, jobName string, transmitter common.Address) {
 					defer wg.Done()
+					resultChan := make(chan intra.QueryResult)
 
-					result, err := intra.FetchLatestN(cfg.Network, common.HexToAddress(contractAddr), lastCheckRound, QUERY_WINDOW)
+					err := intra.FetchLatestN(cfg.Network, common.HexToAddress(contractAddr), lastCheckRound, QUERY_WINDOW, resultChan)
 					if err != nil {
 						log.Error(err.Error())
 						results <- JobResult{Status: ErrorJobStatus, Job: jobName, Transmitter: transmitter.Hex()}
@@ -95,24 +96,26 @@ var watchCmd = &cli.Command{
 					observed := false
 					inCharge := false
 
-					for _, r := range result.Output {
-						if r.Timestamp.After(now.Add(-timeSpan)) {
-							isActive = true
-						}
-
-						for _, trans := range r.Transmitters {
-							if strings.EqualFold(trans.Address.Hex(), transmitter.Hex()) {
-								inCharge = true
+					for result := range resultChan {
+						for _, r := range result.Output {
+							if r.Timestamp.After(now.Add(-timeSpan)) {
+								isActive = true
 							}
-						}
 
-						for _, ob := range r.Observers {
-							if strings.EqualFold(ob.Address.Hex(), transmitter.Hex()) {
-								observed = true
-								break
+							for _, trans := range r.Transmitters {
+								if strings.EqualFold(trans.Address.Hex(), transmitter.Hex()) {
+									inCharge = true
+								}
 							}
-						}
 
+							for _, ob := range r.Observers {
+								if strings.EqualFold(ob.Address.Hex(), transmitter.Hex()) {
+									observed = true
+									break
+								}
+							}
+
+						}
 					}
 
 					if !isActive {
