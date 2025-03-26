@@ -46,6 +46,10 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&output, config.OUTPUT_TYPE_FLAG, config.SHORT_OUTPUT_TYPE_FLAG, "", "Output type (text, json).")
 	rootCmd.PersistentFlags().StringVarP(&configFilePath, config.CONFIG_FILE_FLAG, config.SHORT_CONFIG_FILE_FLAG, "config.toml", "Path to the configuration file (default: config.toml).")
 
+	if err = rootCmd.Execute(); err != nil {
+		log.Fatal(err)
+	}
+
 	rootCmd.AddCommand(fetchCmd, watchCmd, parseCmd)
 
 	cfg, err = config.NewConfig(configFilePath)
