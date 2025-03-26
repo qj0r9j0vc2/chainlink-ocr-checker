@@ -80,9 +80,9 @@ var watchCmd = &cli.Command{
 				wg.Add(1)
 				go func(contractAddr, jobName string, transmitter common.Address) {
 					defer wg.Done()
-					resultChan := make(chan intra.QueryResult)
+					resultChan := make(chan internal.QueryResult)
 
-					err := intra.FetchLatestN(cfg.Network, common.HexToAddress(contractAddr), lastCheckRound, lastCheckBlock, QUERY_WINDOW, resultChan)
+					err := internal.FetchLatestN(cfg.Network, common.HexToAddress(contractAddr), lastCheckRound, lastCheckBlock, QUERY_WINDOW, resultChan)
 					if err != nil {
 						log.Error(err.Error())
 						results <- JobResult{Status: ErrorJobStatus, Job: jobName, Transmitter: transmitter.Hex()}

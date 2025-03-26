@@ -41,9 +41,9 @@ var fetchCmd = &cli.Command{
 
 		log.Infof("contract: %s, start-round: %d, end-round: %d", contract, startRound, endRound)
 
-		resultChan := make(chan intra.QueryResult)
+		resultChan := make(chan internal.QueryResult)
 
-		err := intra.FetchPeriod(cfg.Network, contractAddr, int64(startRound), int64(endRound), QUERY_WINDOW, resultChan)
+		err := internal.FetchPeriod(cfg.Network, contractAddr, int64(startRound), int64(endRound), QUERY_WINDOW, resultChan)
 		if err != nil {
 			cfg.Error(err)
 		}

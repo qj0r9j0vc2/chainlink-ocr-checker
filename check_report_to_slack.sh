@@ -16,7 +16,8 @@ function post_to_slack() {
 
   if [[ -n "$content" ]]; then
     curl -s -X POST -H 'Content-type: application/json' \
-      --data "$(jq -n --arg text "*$title*  \`\`\`$content\`\`\`" '{text: $text}')" \
+      --data "$(jq -n --arg text "*$title*
+$content" '{text: $text}')" \
       "$WEBHOOK_URL"
   fi
 }
@@ -26,7 +27,18 @@ FOUND=$(jq -r '.result[] | select(.status == "FOUND_JOB_STATUS") | "- " + .job' 
 STALE=$(jq -r '.result[] | select(.status == "STALE_JOB_STATUS") | "- " + .job' "$INPUT_JSON_FILE")
 MISSING=$(jq -r '.result[] | select(.status == "MISSING_JOB_STATUS") | "- " + .job' "$INPUT_JSON_FILE")
 
-post_to_slack "🟢 Found Jobs" "$FOUND"
-post_to_slack "🟡 Stale Jobs $2" "$STALE"
-post_to_slack "🔴 Missing Jobs $2" "$MISSING"
+FOUND_COUNT=$(echo "$FOUND" | wc -l)
+STALE_COUNT=$(echo "$STALE" | wc -l)
+MISSING_COUNT=$(echo "$MISSING" | wc -l)
 
+
+#post_to_slack "🟢 Found Jobs" "$FOUND"
+post_to_slack "🟢 Found Jobs $2: $FOUND_COUNT" "
+"
+post_to_slack "🟡 Stale Jobs $2: $STALE_COUNT" "
+
+$STALE"
+
+post_to_slack "🔴 Missing Jobs $2: $MISSING_COUNT" "
+
+$MISSING"
