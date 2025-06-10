@@ -3,7 +3,7 @@ package manager
 import (
 	"bufio"
 	"chainlink-ocr-checker/config"
-	"chainlink-ocr-checker/intra"
+	"chainlink-ocr-checker/internal"
 	"fmt"
 	"github.com/ethereum/go-ethereum/common"
 	log "github.com/sirupsen/logrus"
