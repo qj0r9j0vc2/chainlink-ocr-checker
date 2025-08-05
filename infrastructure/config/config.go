@@ -16,6 +16,7 @@ type Config struct {
 	RPCAddr  string `mapstructure:"rpc_addr"`
 
 	Database DatabaseConfig `mapstructure:"database"`
+	Alert    AlertConfig    `mapstructure:"alert"`
 
 	// Timeouts and limits.
 	BlockchainTimeout    time.Duration `mapstructure:"blockchain_timeout"`
@@ -38,6 +39,18 @@ type DatabaseConfig struct {
 	ConnMaxLifetime time.Duration `mapstructure:"conn_max_lifetime"`
 }
 
+// AlertConfig represents alert configuration.
+type AlertConfig struct {
+	Enabled          bool          `mapstructure:"enabled"`
+	WebhookURL       string        `mapstructure:"webhook_url"`
+	Channel          string        `mapstructure:"channel"`
+	MentionUsers     []string      `mapstructure:"mention_users"`
+	StaleThreshold   time.Duration `mapstructure:"stale_threshold"`
+	AlertOnStale     bool          `mapstructure:"alert_on_stale"`
+	AlertOnMissing   bool          `mapstructure:"alert_on_missing"`
+	AlertOnError     bool          `mapstructure:"alert_on_error"`
+}
+
 // LoadConfig loads configuration from file and environment.
 func LoadConfig(configPath string) (*Config, error) {
 	v := viper.New()
@@ -51,6 +64,13 @@ func LoadConfig(configPath string) (*Config, error) {
 	v.SetDefault("database.max_idle_conns", 10)
 	v.SetDefault("database.max_open_conns", 100)
 	v.SetDefault("database.conn_max_lifetime", "1h")
+	
+	// Alert defaults.
+	v.SetDefault("alert.enabled", false)
+	v.SetDefault("alert.stale_threshold", "24h")
+	v.SetDefault("alert.alert_on_stale", true)
+	v.SetDefault("alert.alert_on_missing", true)
+	v.SetDefault("alert.alert_on_error", true)
 
 	// Set config file.
 	if configPath != "" {

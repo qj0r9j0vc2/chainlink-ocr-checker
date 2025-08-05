@@ -134,12 +134,6 @@ func displayWatchResultsJSON(result *interfaces.WatchTransmittersResult) error {
 	return encoder.Encode(result)
 }
 
-// parseInt parses a string to int.
-func parseInt(s string) (int, error) {
-	var v int
-	_, err := fmt.Sscanf(s, "%d", &v)
-	return v, err
-}
 
 // truncate truncates a string to the specified length.
 func truncate(s string, maxLen int) string {

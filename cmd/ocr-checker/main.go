@@ -55,6 +55,8 @@ and protocol performance across different blockchain networks.`,
 		commands.NewFetchCommand(container),
 		commands.NewWatchCommand(container),
 		commands.NewParseCommand(container),
+		commands.NewAlertCommand(container),
+		commands.NewMonitorCommand(container),
 		commands.NewVersionCommand(),
 	)
 	

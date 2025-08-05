@@ -10,6 +10,8 @@ import (
 	"chainlink-ocr-checker/domain/interfaces"
 	"chainlink-ocr-checker/infrastructure/blockchain"
 	"chainlink-ocr-checker/infrastructure/logger"
+	"chainlink-ocr-checker/infrastructure/metrics"
+	"chainlink-ocr-checker/infrastructure/notifier"
 	"chainlink-ocr-checker/infrastructure/repository"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"gorm.io/driver/postgres"
@@ -35,6 +37,8 @@ type Container struct {
 	OCR2AggregatorService interfaces.OCR2AggregatorService
 	TransmissionFetcher   interfaces.TransmissionFetcher
 	TransmissionAnalyzer  interfaces.TransmissionAnalyzer
+	Notifier              interfaces.Notifier
+	MetricsExporter       *metrics.Exporter
 
 	// Use Cases.
 	FetchTransmissionsUseCase interfaces.FetchTransmissionsUseCase
@@ -69,6 +73,12 @@ func NewContainer(config *Config) (*Container, error) {
 
 	// Initialize use cases.
 	container.initUseCases()
+
+	// Initialize notifier if configured.
+	container.initNotifier()
+
+	// Initialize metrics exporter.
+	container.initMetrics()
 
 	return container, nil
 }
@@ -159,6 +169,23 @@ func (c *Container) initUseCases() {
 		c.TransmissionAnalyzer,
 		c.Logger,
 	)
+}
+
+// initNotifier initializes the notifier service.
+func (c *Container) initNotifier() {
+	if c.Config.Alert.WebhookURL != "" {
+		c.Notifier = notifier.NewSlackNotifier(
+			c.Config.Alert.WebhookURL,
+			c.Config.Alert.Channel,
+			c.Config.Alert.MentionUsers,
+			c.Logger,
+		)
+	}
+}
+
+// initMetrics initializes the metrics exporter.
+func (c *Container) initMetrics() {
+	c.MetricsExporter = metrics.NewExporter(c.Logger)
 }
 
 // Close closes all resources.
