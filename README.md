@@ -8,14 +8,14 @@ A production-ready monitoring tool for Chainlink OCR2 (Off-Chain Reporting v2) p
 
 ## Features
 
-- 🔍 **Transmitter Monitoring**: Track transmitter activity across multiple OCR2 jobs
-- 📊 **Observer Analysis**: Analyze observer participation patterns and detect anomalies
-- 🔄 **Real-time Monitoring**: Watch recent rounds for transmitter participation
-- 📈 **Historical Analysis**: Fetch and analyze historical transmission data
-- 🎯 **Multi-format Output**: Support for JSON, YAML, CSV, and text output formats
-- 🏗️ **Clean Architecture**: Built with SOLID principles and dependency injection
-- ✅ **Comprehensive Testing**: Unit tests, integration tests, and E2E tests
-- 🚀 **Production Ready**: Error handling, structured logging, and CI/CD pipeline
+- **Transmitter Monitoring**: Track transmitter activity across multiple OCR2 jobs
+- **Observer Analysis**: Analyze observer participation patterns and detect anomalies
+- **Real-time Monitoring**: Watch recent rounds for transmitter participation
+- **Historical Analysis**: Fetch and analyze historical transmission data
+- **Multi-format Output**: Support for JSON, YAML, CSV, and text output formats
+- **Clean Architecture**: Built with SOLID principles and dependency injection
+- **Comprehensive Testing**: Unit tests, integration tests, and E2E tests
+- **Production Ready**: Error handling, structured logging, and CI/CD pipeline
 
 ## Architecture
 
