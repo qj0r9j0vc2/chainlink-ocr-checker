@@ -1,4 +1,5 @@
 /config.toml
 /.idea/
 /results/
-ocr-checker
+/ocr-checker
+ocr-checker-*
