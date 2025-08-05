@@ -26,15 +26,9 @@ func NewWatchCommand(container *config.Container) *cobra.Command {
 Checks recent rounds for activity and reports job status (Found, Stale, Missing, etc.).`,
 		Args: cobra.RangeArgs(2, 3),
 		RunE: func(_ *cobra.Command, args []string) error {
-			// Check if database is configured.
+			// Check if use case is configured.
 			if container.WatchTransmittersUseCase == nil {
-				fmt.Println("Watch command requires database configuration.")
-				fmt.Println("The watch command is designed to monitor known transmitter jobs stored in a database.")
-				fmt.Println("\nTo monitor a specific contract without a database, use:")
-				fmt.Println("  ocr-checker fetch <contract_address> <start_round> <end_round>")
-				fmt.Println("  ocr-checker info <contract_address>")
-				fmt.Println("\nTo use the watch command, configure a PostgreSQL database in your config file.")
-				return nil
+				return fmt.Errorf("watch transmitters use case not initialized")
 			}
 			
 			// Parse arguments.

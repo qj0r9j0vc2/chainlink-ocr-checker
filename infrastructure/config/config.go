@@ -57,7 +57,7 @@ func LoadConfig(configPath string) (*Config, error) {
 		v.SetConfigFile(configPath)
 	} else {
 		v.SetConfigName("config")
-		v.SetConfigType("toml")
+		v.SetConfigType("yaml")
 		v.AddConfigPath(".")
 		v.AddConfigPath("./config")
 		v.AddConfigPath("/etc/ocr-checker")

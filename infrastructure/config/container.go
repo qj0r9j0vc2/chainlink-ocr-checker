@@ -58,10 +58,22 @@ func NewContainer(config *Config) (*Container, error) {
 
 	// Initialize database (optional).
 	if config.Database.Host != "" {
+		container.Logger.Info("Initializing database connection",
+			"host", config.Database.Host,
+			"port", config.Database.Port,
+			"dbname", config.Database.DBName)
+		
 		if err := container.initDatabase(); err != nil {
 			container.Logger.Warn("Failed to initialize database", "error", err)
 			// Database is optional, so we continue.
+			// Reset repositories to ensure blockchain-based implementation is used
+			container.JobRepository = nil
+			container.TransmissionRepository = nil
+			container.UnitOfWork = nil
+			container.DB = nil
 		}
+	} else {
+		container.Logger.Info("Database not configured, using blockchain-based implementation")
 	}
 
 	// Initialize services.
@@ -114,8 +126,13 @@ func (c *Container) initDatabase() error {
 	sqlDB.SetConnMaxLifetime(c.Config.Database.ConnMaxLifetime)
 
 	c.DB = db
+	
+	// Ping database to ensure connection is valid
+	if err := sqlDB.Ping(); err != nil {
+		return fmt.Errorf("failed to ping database: %w", err)
+	}
 
-	// Initialize repositories.
+	// Initialize repositories only if database is properly connected
 	c.JobRepository = repository.NewJobRepository(db)
 	c.TransmissionRepository = repository.NewTransmissionRepository(db)
 	c.UnitOfWork = repository.NewUnitOfWork(db)
@@ -152,6 +169,14 @@ func (c *Container) initUseCases() {
 	if c.JobRepository != nil {
 		c.WatchTransmittersUseCase = usecases.NewWatchTransmittersUseCase(
 			c.JobRepository,
+			c.TransmissionFetcher,
+			c.OCR2AggregatorService,
+			c.Logger,
+		)
+	} else {
+		// Use blockchain-based implementation when database is not available
+		c.WatchTransmittersUseCase = usecases.NewWatchTransmittersBlockchainUseCase(
+			c.BlockchainClient,
 			c.TransmissionFetcher,
 			c.OCR2AggregatorService,
 			c.Logger,
