@@ -1,0 +1,174 @@
+linters:
+  enable:
+    - gofmt
+    - golint
+    - govet
+    - errcheck
+    - staticcheck
+    - gosimple
+    - structcheck
+    - varcheck
+    - ineffassign
+    - deadcode
+    - typecheck
+    - gosec
+    - dupl
+    - goconst
+    - gocyclo
+    - gocognit
+    - prealloc
+    - misspell
+    - lll
+    - unparam
+    - nakedret
+    - gocritic
+    - goimports
+    - revive
+    - unconvert
+    - bodyclose
+    - noctx
+    - exhaustive
+    - sqlclosecheck
+    - nolintlint
+    - stylecheck
+    - interfacer
+    - whitespace
+    - wsl
+    - goprintffuncname
+    - gomnd
+    - goerr113
+    - gomodguard
+    - godot
+    - testpackage
+    - nestif
+    - exportloopref
+    - exhaustivestruct
+    - forcetypeassert
+    - godox
+    - funlen
+
+  disable:
+    - maligned
+    - gochecknoglobals
+    - gochecknoinits
+    - godox
+    - funlen
+    - wsl
+    - gomnd
+    - testpackage
+
+linters-settings:
+  gocyclo:
+    min-complexity: 15
+  
+  gocognit:
+    min-complexity: 20
+  
+  dupl:
+    threshold: 100
+  
+  goconst:
+    min-len: 2
+    min-occurrences: 2
+  
+  misspell:
+    locale: US
+  
+  lll:
+    line-length: 120
+  
+  goimports:
+    local-prefixes: chainlink-ocr-checker
+  
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - experimental
+      - opinionated
+      - performance
+      - style
+    disabled-checks:
+      - dupImport
+      - ifElseChain
+      - octalLiteral
+      - whyNoLint
+      - wrapperFunc
+  
+  errcheck:
+    check-type-assertions: true
+    check-blank: true
+  
+  gosec:
+    excludes:
+      - G104
+      - G304
+  
+  revive:
+    rules:
+      - name: blank-imports
+      - name: context-as-argument
+      - name: context-keys-type
+      - name: dot-imports
+      - name: error-return
+      - name: error-strings
+      - name: error-naming
+      - name: if-return
+      - name: increment-decrement
+      - name: var-naming
+      - name: var-declaration
+      - name: package-comments
+      - name: range
+      - name: receiver-naming
+      - name: time-naming
+      - name: unexported-return
+      - name: indent-error-flow
+      - name: errorf
+      - name: empty-block
+      - name: superfluous-else
+      - name: unused-parameter
+      - name: unreachable-code
+      - name: redefines-builtin-id
+
+issues:
+  exclude-use-default: false
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - gosec
+        - dupl
+        - goconst
+        - funlen
+        - gocognit
+        - gocyclo
+    
+    - path: test/
+      linters:
+        - gosec
+        - errcheck
+    
+    - path: cmd/
+      linters:
+        - gocyclo
+        - gocognit
+
+run:
+  skip-dirs:
+    - vendor
+    - third_party
+    - testdata
+    - examples
+    - Godeps
+    - builtin
+  
+  skip-files:
+    - ".*\\.pb\\.go$"
+    - ".*\\.gen\\.go$"
+  
+  timeout: 5m
+  tests: true
+  build-tags:
+    - integration
+    - e2e
