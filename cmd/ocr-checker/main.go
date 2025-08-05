@@ -1,5 +1,5 @@
-// Package main is the entry point for the OCR checker CLI application.
-// It provides commands for fetching, parsing, and watching OCR transmission data.
+// Package main is the main entry point for the ocr-checker CLI application.
+// It sets up the root command and initializes the application configuration.
 package main
 
 import (

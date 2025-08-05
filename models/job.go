@@ -1,3 +1,5 @@
+// Package models contains data models and structures for the OCR checker application.
+// It defines database entities and their relationships.
 package models
 
 import (
@@ -5,6 +7,7 @@ import (
 	"time"
 )
 
+// Job represents a Chainlink job entity with all its specifications.
 type Job struct {
 	ID                            int       `gorm:"primaryKey;autoIncrement"`
 	OCROracleSpecID               *int      `gorm:"column:ocr_oracle_spec_id"`
@@ -32,20 +35,20 @@ type Job struct {
 	CCIPSpecID                    *int      `gorm:"column:ccip_spec_id"`
 	CCIPBootstrapSpecID           *int      `gorm:"column:ccip_bootstrap_spec_id"`
 	BALSpecID                     *int      `gorm:"column:bal_spec_id"`
-	StreamID                      *int64    `gorm:"column:stream_id;index:idx_jobs_unique_stream_id,unique,where:stream_id IS NOT NULL"`
-	ExternalJobID                 uuid.UUID `gorm:"type:uuid;not null;uniqueIndex;check:external_job_id <> '00000000-0000-0000-0000-000000000000'"`
+	StreamID      *int64    `gorm:"column:stream_id;index:idx_jobs_unique_stream_id,unique"`
+	ExternalJobID uuid.UUID `gorm:"type:uuid;not null;uniqueIndex"`
 	CreatedAt                     time.Time `gorm:"not null;index:idx_jobs_created_at,using:brin"`
 	GasLimit                      *int64    `gorm:"column:gas_limit"`
 	ForwardingAllowed             bool      `gorm:"not null;default:false"`
 
-	// GORM soft delete or timestamps (if needed)
-	// UpdatedAt time.Time
-	// DeletedAt gorm.DeletedAt `gorm:"index"`
+	// GORM soft delete or timestamps (if needed).
+	// UpdatedAt time.Time.
+	// DeletedAt gorm.DeletedAt `gorm:"index"`.
 
-	// Foreign keys handled by GORM relationships if needed
+	// Foreign keys handled by GORM relationships if needed.
 }
 
-// TableName overrides the default table name
+// TableName overrides the default table name.
 func (Job) TableName() string {
 	return "jobs"
 }

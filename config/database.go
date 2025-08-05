@@ -1,3 +1,5 @@
+// Package config provides configuration constants and utilities for the OCR checker application.
+// It contains flag constants, database configuration, and shared configuration types.
 package config
 
 import (
@@ -11,6 +13,7 @@ import (
 	"strings"
 )
 
+// Database represents database configuration settings.
 type Database struct {
 	User     string `toml:"user"`
 	Password string `toml:"password"`
@@ -21,6 +24,7 @@ type Database struct {
 	SSLMode string `toml:"sslMode"` // e.g., "disable", "require"
 }
 
+// GetDatabase creates and returns a database connection using the provided configuration.
 func GetDatabase(dbConfig Database) (*sql.DB, error) {
 	db, err := getDBConnection(dbConfig)
 	if err != nil {

@@ -1,0 +1,56 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.23'
+    
+    - name: Run tests
+      run: make test
+    
+    - name: Build binaries
+      run: |
+        # Linux AMD64
+        GOOS=linux GOARCH=amd64 go build -ldflags "-X 'chainlink-ocr-checker/cmd/ocr-checker/commands.Version=${{ github.ref_name }}' -X 'chainlink-ocr-checker/cmd/ocr-checker/commands.GitCommit=${{ github.sha }}' -X 'chainlink-ocr-checker/cmd/ocr-checker/commands.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)'" -o ocr-checker-linux-amd64 .
+        
+        # Linux ARM64
+        GOOS=linux GOARCH=arm64 go build -ldflags "-X 'chainlink-ocr-checker/cmd/ocr-checker/commands.Version=${{ github.ref_name }}' -X 'chainlink-ocr-checker/cmd/ocr-checker/commands.GitCommit=${{ github.sha }}' -X 'chainlink-ocr-checker/cmd/ocr-checker/commands.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)'" -o ocr-checker-linux-arm64 .
+        
+        # Darwin AMD64
+        GOOS=darwin GOARCH=amd64 go build -ldflags "-X 'chainlink-ocr-checker/cmd/ocr-checker/commands.Version=${{ github.ref_name }}' -X 'chainlink-ocr-checker/cmd/ocr-checker/commands.GitCommit=${{ github.sha }}' -X 'chainlink-ocr-checker/cmd/ocr-checker/commands.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)'" -o ocr-checker-darwin-amd64 .
+        
+        # Darwin ARM64
+        GOOS=darwin GOARCH=arm64 go build -ldflags "-X 'chainlink-ocr-checker/cmd/ocr-checker/commands.Version=${{ github.ref_name }}' -X 'chainlink-ocr-checker/cmd/ocr-checker/commands.GitCommit=${{ github.sha }}' -X 'chainlink-ocr-checker/cmd/ocr-checker/commands.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)'" -o ocr-checker-darwin-arm64 .
+        
+        # Windows AMD64
+        GOOS=windows GOARCH=amd64 go build -ldflags "-X 'chainlink-ocr-checker/cmd/ocr-checker/commands.Version=${{ github.ref_name }}' -X 'chainlink-ocr-checker/cmd/ocr-checker/commands.GitCommit=${{ github.sha }}' -X 'chainlink-ocr-checker/cmd/ocr-checker/commands.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)'" -o ocr-checker-windows-amd64.exe .
+    
+    - name: Create checksums
+      run: |
+        sha256sum ocr-checker-* > checksums.txt
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          ocr-checker-*
+          checksums.txt
+        generate_release_notes: true
+        draft: false
+        prerelease: ${{ contains(github.ref_name, '-') }}

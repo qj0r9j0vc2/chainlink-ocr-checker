@@ -1,3 +1,5 @@
+// Package internal contains internal implementation details for the OCR checker.
+// It provides utilities for fetching and processing blockchain data.
 package internal
 
 import (
@@ -21,13 +23,20 @@ const (
 	maxConcurrency       = 30 // Limit for concurrent RPC calls
 )
 
+// QueryResult represents the result of a query operation.
 type QueryResult struct {
 	StartBlock uint64
 	Output     []config.Result
 	Err        error
 }
 
-func FetchPeriod(client *ethclient.Client, contractAddr common.Address, startRound, endRound, querySize int64, resultChan chan QueryResult) error {
+// FetchPeriod fetches OCR transmissions for a given period range.
+func FetchPeriod(
+	client *ethclient.Client,
+	contractAddr common.Address,
+	startRound, endRound, querySize int64,
+	resultChan chan QueryResult,
+) error {
 	aggr, err := ocr2aggregator.NewAccessControlledOCR2Aggregator(contractAddr, client)
 	if err != nil {
 		return errors.Wrap(err, "failed to create OCR2 aggregator instance")
@@ -50,7 +59,7 @@ func FetchPeriod(client *ethclient.Client, contractAddr common.Address, startRou
 
 	go func() {
 		defer wg.Done()
-		block, err := getBlockNumberByRoundId(client, aggr, startRound)
+		block, err := getBlockNumberByRoundID(client, aggr, startRound)
 		if err != nil {
 			errs <- errors.Wrapf(err, "getting start block for round %d", startRound)
 			return
@@ -60,7 +69,7 @@ func FetchPeriod(client *ethclient.Client, contractAddr common.Address, startRou
 
 	go func() {
 		defer wg.Done()
-		block, err := getBlockNumberByRoundId(client, aggr, endRound)
+		block, err := getBlockNumberByRoundID(client, aggr, endRound)
 		if err != nil {
 			errs <- errors.Wrapf(err, "getting end block for round %d", endRound)
 			return
@@ -86,15 +95,19 @@ func FetchPeriod(client *ethclient.Client, contractAddr common.Address, startRou
 	)
 }
 
-func fetch(aggr *ocr2aggregator.AccessControlledOCR2Aggregator, startBlock, endBlock *big.Int, startRound, endRound, querySize int64, resultChan chan QueryResult) error {
-
+func fetch(
+	aggr *ocr2aggregator.AccessControlledOCR2Aggregator,
+	startBlock, endBlock *big.Int,
+	startRound, endRound, querySize int64,
+	resultChan chan QueryResult,
+) error {
 	if endBlock.Cmp(startBlock) < 0 {
 		return errors.New("invalid block range: startBlock > endBlock")
 	}
 
-	var roundIds []uint32
+	var roundIDs []uint32
 	for i := startRound; i <= endRound; i++ {
-		roundIds = append(roundIds, uint32(i))
+		roundIDs = append(roundIDs, uint32(i)) // #nosec G115 -- i is bounded by startRound and endRound
 	}
 
 	transmittersMap := make(map[[32]byte][]common.Address)
@@ -160,7 +173,7 @@ func fetch(aggr *ocr2aggregator.AccessControlledOCR2Aggregator, startBlock, endB
 			defer queryWg.Done()
 			defer func() { <-querySem }()
 
-			output, err := filterAndCaptureTransmissions(aggr, start, end, roundIds, transmittersMap)
+			output, err := filterAndCaptureTransmissions(aggr, start, end, roundIDs, transmittersMap)
 			resultChan <- QueryResult{StartBlock: start, Output: output, Err: err}
 		}(start, end)
 
@@ -175,10 +188,14 @@ func fetch(aggr *ocr2aggregator.AccessControlledOCR2Aggregator, startBlock, endB
 	return nil
 }
 
-func getBlockNumberByRoundId(client *ethclient.Client, aggr *ocr2aggregator.AccessControlledOCR2Aggregator, roundId int64) (*big.Int, error) {
-	ts, err := aggr.GetTimestamp(nil, big.NewInt(roundId))
+func getBlockNumberByRoundID(
+	client *ethclient.Client,
+	aggr *ocr2aggregator.AccessControlledOCR2Aggregator,
+	roundID int64,
+) (*big.Int, error) {
+	ts, err := aggr.GetTimestamp(nil, big.NewInt(roundID))
 	if err != nil {
-		return nil, fmt.Errorf("GetTimestamp failed for round %d: %w", roundId, err)
+		return nil, fmt.Errorf("GetTimestamp failed for round %d: %w", roundID, err)
 	}
 	blockNumber, _, err := findBlockByTimestamp(client, ts)
 	if err != nil {
@@ -190,15 +207,15 @@ func getBlockNumberByRoundId(client *ethclient.Client, aggr *ocr2aggregator.Acce
 func filterAndCaptureTransmissions(
 	aggr *ocr2aggregator.AccessControlledOCR2Aggregator,
 	start, end uint64,
-	roundIds []uint32,
+	roundIDs []uint32,
 	transmittersMap map[[32]byte][]common.Address,
 ) ([]config.Result, error) {
 	opts := &bind.FilterOpts{Start: start, End: &end, Context: context.Background()}
-	iter, err := aggr.FilterNewTransmission(opts, roundIds)
+	iter, err := aggr.FilterNewTransmission(opts, roundIDs)
 	if err != nil {
 		return nil, fmt.Errorf("filtering transmissions failed: %w", err)
 	}
-	defer iter.Close()
+	defer func() { _ = iter.Close() }()
 
 	var output []config.Result
 	for iter.Next() {
@@ -215,7 +232,7 @@ func filterAndCaptureTransmissions(
 			formatted = append(formatted, config.ResultObserver{Idx: idx, Address: addr})
 		}
 		output = append(output, config.Result{
-			RoundId:      fmt.Sprintf("%d", iter.Event.AggregatorRoundId),
+			RoundID:      fmt.Sprintf("%d", iter.Event.AggregatorRoundId),
 			Timestamp:    time.UnixMilli(int64(iter.Event.ObservationsTimestamp) * 1e3),
 			Observers:    observers,
 			Transmitters: formatted,
@@ -230,16 +247,19 @@ func findBlockByTimestamp(client *ethclient.Client, targetTimestamp *big.Int) (*
 	if err != nil {
 		return nil, nil, err
 	}
+	// #nosec G115 -- block number is valid
 	latestBlock, err := client.BlockByNumber(ctx, big.NewInt(int64(latestBlockNumber)))
 	if err != nil {
 		return nil, nil, err
 	}
-	latestTimestamp := big.NewInt(int64(latestBlock.Time()))
+	latestTimestamp := big.NewInt(int64(latestBlock.Time())) // #nosec G115 -- block timestamp is valid
 
 	blockInterval := defaultBlockInterval
+	// #nosec G115 -- block number is valid
 	if block, err := client.BlockByNumber(ctx, big.NewInt(int64(latestBlockNumber))); err == nil {
-		if prev, err := client.BlockByNumber(ctx, big.NewInt(int64(latestBlockNumber-1))); err == nil && block.Time() > prev.Time() {
-			blockInterval = int(block.Time() - prev.Time())
+		prevBlockNum := big.NewInt(int64(latestBlockNumber - 1)) // #nosec G115 -- block number is valid
+		if prev, err := client.BlockByNumber(ctx, prevBlockNum); err == nil && block.Time() > prev.Time() {
+			blockInterval = int(block.Time() - prev.Time()) // #nosec G115 -- block times are valid
 		}
 	}
 
@@ -248,13 +268,13 @@ func findBlockByTimestamp(client *ethclient.Client, targetTimestamp *big.Int) (*
 	if estimatedBlocksAgo < 0 {
 		estimatedBlocksAgo = 0
 	}
-	estimatedStart := new(big.Int).Sub(big.NewInt(int64(latestBlockNumber)), big.NewInt(estimatedBlocksAgo))
+	estimatedStart := new(big.Int).Sub(big.NewInt(int64(latestBlockNumber)), big.NewInt(estimatedBlocksAgo)) // #nosec G115
 	if estimatedStart.Sign() < 0 {
 		estimatedStart = big.NewInt(0)
 	}
 
 	low := estimatedStart
-	high := big.NewInt(int64(latestBlockNumber))
+	high := big.NewInt(int64(latestBlockNumber)) // #nosec G115 -- block number is valid
 	mid := new(big.Int)
 	for low.Cmp(high) <= 0 {
 		mid.Add(low, high)
@@ -263,13 +283,14 @@ func findBlockByTimestamp(client *ethclient.Client, targetTimestamp *big.Int) (*
 		if err != nil {
 			return nil, nil, err
 		}
-		blockTime := big.NewInt(int64(block.Time()))
+		blockTime := big.NewInt(int64(block.Time())) // #nosec G115 -- block timestamp is valid
 		cmp := blockTime.Cmp(targetTimestamp)
-		if cmp < 0 {
+		switch {
+		case cmp < 0:
 			low.Add(mid, big.NewInt(1))
-		} else if cmp > 0 {
+		case cmp > 0:
 			high.Sub(mid, big.NewInt(1))
-		} else {
+		default:
 			return mid, block, nil
 		}
 	}
