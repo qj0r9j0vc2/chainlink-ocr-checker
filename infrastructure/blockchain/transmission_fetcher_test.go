@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestTransmissionFetcherOptimized_FetchByRounds(t *testing.T) {
+func TestTransmissionFetcher_FetchByRounds(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -26,7 +26,7 @@ func TestTransmissionFetcherOptimized_FetchByRounds(t *testing.T) {
 	mockLogger.EXPECT().Debug(gomock.Any(), gomock.Any()).AnyTimes()
 	mockLogger.EXPECT().Warn(gomock.Any(), gomock.Any()).AnyTimes()
 
-	fetcher := NewTransmissionFetcherOptimized(mockClient, mockAggregator, mockLogger)
+	fetcher := NewTransmissionFetcher(mockClient, mockAggregator, mockLogger)
 	ctx := context.Background()
 	contractAddr := common.HexToAddress("0x1234567890abcdef")
 
@@ -93,7 +93,7 @@ func TestTransmissionFetcherOptimized_FetchByRounds(t *testing.T) {
 	})
 }
 
-func TestTransmissionFetcherOptimized_FetchByBlocks(t *testing.T) {
+func TestTransmissionFetcher_FetchByBlocks(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -104,7 +104,7 @@ func TestTransmissionFetcherOptimized_FetchByBlocks(t *testing.T) {
 	mockLogger.EXPECT().Info(gomock.Any(), gomock.Any()).AnyTimes()
 	mockLogger.EXPECT().Debug(gomock.Any(), gomock.Any()).AnyTimes()
 
-	fetcher := NewTransmissionFetcherOptimized(mockClient, mockAggregator, mockLogger)
+	fetcher := NewTransmissionFetcher(mockClient, mockAggregator, mockLogger)
 	ctx := context.Background()
 	contractAddr := common.HexToAddress("0x1234567890abcdef")
 
@@ -139,7 +139,7 @@ func TestTransmissionFetcherOptimized_FetchByBlocks(t *testing.T) {
 	})
 }
 
-func TestTransmissionFetcherOptimized_Cache(t *testing.T) {
+func TestTransmissionFetcher_Cache(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -150,7 +150,7 @@ func TestTransmissionFetcherOptimized_Cache(t *testing.T) {
 	mockLogger.EXPECT().Info(gomock.Any(), gomock.Any()).AnyTimes()
 	mockLogger.EXPECT().Debug(gomock.Any(), gomock.Any()).AnyTimes()
 
-	fetcherImpl := &transmissionFetcherOptimized{
+	fetcherImpl := &transmissionFetcher{
 		blockchainClient:  mockClient,
 		aggregatorService: mockAggregator,
 		concurrency:       10,
@@ -178,8 +178,8 @@ func TestTransmissionFetcherOptimized_Cache(t *testing.T) {
 	assert.Equal(t, uint64(0), fetcherImpl.getFromCache(key))
 }
 
-func TestTransmissionFetcherOptimized_SplitBlockRange(t *testing.T) {
-	fetcherImpl := &transmissionFetcherOptimized{
+func TestTransmissionFetcher_SplitBlockRange(t *testing.T) {
+	fetcherImpl := &transmissionFetcher{
 		concurrency: 10,
 	}
 
