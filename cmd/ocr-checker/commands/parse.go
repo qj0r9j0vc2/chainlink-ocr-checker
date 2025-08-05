@@ -44,19 +44,20 @@ observer activity reports grouped by day, month, or round.`,
 				return fmt.Errorf("invalid group by unit: %s (use day, month, or round)", groupByStr)
 			}
 			
+			// Validate output format
+			if err := ValidateFormat(outputFormat); err != nil {
+				return err
+			}
+
 			// Map output format string to enum.
 			var format interfaces.OutputFormat
 			switch outputFormat {
 			case OutputFormatJSON:
 				format = interfaces.OutputFormatJSON
-			case "csv":
-				format = interfaces.OutputFormatCSV
-			case "text":
-				format = interfaces.OutputFormatText
-			case "yaml":
+			case OutputFormatYAML:
 				format = interfaces.OutputFormatYAML
 			default:
-				format = interfaces.OutputFormatText
+				return fmt.Errorf("unsupported output format: %s", outputFormat)
 			}
 			
 			// Create context.
@@ -108,8 +109,8 @@ observer activity reports grouped by day, month, or round.`,
 	}
 	
 	// Add flags.
-	cmd.Flags().StringVarP(&outputFormat, "format", "f", "text", "Output format (text, json, csv, yaml)")
-	cmd.Flags().StringVarP(&outputPath, "output", "o", "", "Output file path (default: stdout)")
+	cmd.Flags().StringVarP(&outputFormat, "output", "o", "json", "Output format (json, yaml)")
+	cmd.Flags().StringVarP(&outputPath, "path", "p", "", "Output file path (default: stdout)")
 	
 	return cmd
 }

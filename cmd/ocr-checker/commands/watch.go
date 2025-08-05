@@ -4,12 +4,8 @@ package commands
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"os"
-	"text/tabwriter"
 
-	"chainlink-ocr-checker/domain/entities"
 	"chainlink-ocr-checker/domain/interfaces"
 	"chainlink-ocr-checker/infrastructure/config"
 	"github.com/ethereum/go-ethereum/common"
@@ -71,67 +67,22 @@ Checks recent rounds for activity and reports job status (Found, Stale, Missing,
 				return fmt.Errorf("failed to watch transmitter: %w", err)
 			}
 			
-			// Display results.
-			if outputFormat == OutputFormatJSON {
-				return displayWatchResultsJSON(result)
+			// Validate output format
+			if err := ValidateFormat(outputFormat); err != nil {
+				return err
 			}
-			return displayWatchResultsTable(result)
+
+			// Display results using output formatter
+			formatter := NewOutputFormatter(outputFormat)
+			return formatter.Print(result)
 		},
 	}
 	
 	// Add flags.
-	cmd.Flags().StringVarP(&outputFormat, "output", "o", "table", "Output format (table, json)")
+	cmd.Flags().StringVarP(&outputFormat, "output", "o", "json", "Output format (json, yaml)")
 	cmd.Flags().IntVarP(&daysToIgnore, "days", "d", 0, "Days to ignore for stale detection")
 	
 	return cmd
-}
-
-// displayWatchResultsTable displays watch results in table format.
-func displayWatchResultsTable(result *interfaces.WatchTransmittersResult) error {
-	// Print summary.
-	fmt.Printf("\nTransmitter Watch Summary\n")
-	fmt.Printf("========================\n")
-	fmt.Printf("Total Jobs: %d\n", result.Summary.TotalJobs)
-	fmt.Printf("Found: %d\n", result.Summary.FoundJobs)
-	fmt.Printf("Stale: %d\n", result.Summary.StaleJobs)
-	fmt.Printf("Missing: %d\n", result.Summary.MissingJobs)
-	fmt.Printf("No Active: %d\n", result.Summary.NoActiveJobs)
-	fmt.Printf("Error: %d\n", result.Summary.ErrorJobs)
-	fmt.Printf("\n")
-	
-	// Print detailed status table.
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintln(w, "Status\tJob ID\tContract\tLast Round\tLast Seen")
-	_, _ = fmt.Fprintln(w, "------\t------\t--------\t----------\t---------")
-	
-	for _, status := range result.Statuses {
-		lastSeen := "Never"
-		if !status.LastTimestamp.IsZero() {
-			lastSeen = status.LastTimestamp.Format("2006-01-02 15:04:05")
-		}
-		
-		statusStr := string(status.Status)
-		if status.Status == entities.JobStatusError && status.Error != nil {
-			statusStr = fmt.Sprintf("%s (%v)", status.Status, status.Error)
-		}
-		
-		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\n",
-			statusStr,
-			truncate(status.JobID, 20),
-			truncate(status.ContractAddress.Hex(), 20),
-			status.LastRound,
-			lastSeen,
-		)
-	}
-	
-	return w.Flush()
-}
-
-// displayWatchResultsJSON displays watch results in JSON format.
-func displayWatchResultsJSON(result *interfaces.WatchTransmittersResult) error {
-	encoder := json.NewEncoder(os.Stdout)
-	encoder.SetIndent("", "  ")
-	return encoder.Encode(result)
 }
 
 // parseInt parses a string to int.
@@ -139,12 +90,4 @@ func parseInt(s string) (int, error) {
 	var v int
 	_, err := fmt.Sscanf(s, "%d", &v)
 	return v, err
-}
-
-// truncate truncates a string to the specified length.
-func truncate(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen-3] + "..."
 }

@@ -4,19 +4,16 @@ package usecases
 
 import (
 	"context"
-	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
-	"sort"
-	"strings"
 
 	"chainlink-ocr-checker/domain/entities"
 	"chainlink-ocr-checker/domain/errors"
 	"chainlink-ocr-checker/domain/interfaces"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 // parseTransmissionsUseCase implements the ParseTransmissionsUseCase interface.
@@ -73,12 +70,10 @@ func (uc *parseTransmissionsUseCase) Execute(_ context.Context, params interface
 	switch params.OutputFormat {
 	case interfaces.OutputFormatJSON:
 		return uc.outputJSON(params.OutputWriter, observerActivities, params.GroupBy)
-	case interfaces.OutputFormatCSV:
-		return uc.outputCSV(params.OutputWriter, observerActivities, params.GroupBy)
-	case interfaces.OutputFormatText:
-		return uc.outputText(params.OutputWriter, observerActivities, params.GroupBy)
+	case interfaces.OutputFormatYAML:
+		return uc.outputYAML(params.OutputWriter, observerActivities, params.GroupBy)
 	default:
-		return uc.outputText(params.OutputWriter, observerActivities, params.GroupBy)
+		return fmt.Errorf("unsupported output format: %s", params.OutputFormat)
 	}
 }
 
@@ -109,8 +104,6 @@ func (uc *parseTransmissionsUseCase) validateParams(params interfaces.ParseTrans
 	
 	validFormats := map[interfaces.OutputFormat]bool{
 		interfaces.OutputFormatJSON: true,
-		interfaces.OutputFormatCSV:  true,
-		interfaces.OutputFormatText: true,
 		interfaces.OutputFormatYAML: true,
 	}
 	
@@ -168,150 +161,34 @@ func (uc *parseTransmissionsUseCase) outputJSON(
 	return encoder.Encode(output)
 }
 
-// outputCSV outputs observer activities as CSV.
-func (uc *parseTransmissionsUseCase) outputCSV(
+// outputYAML outputs observer activities as YAML via JSON conversion.
+func (uc *parseTransmissionsUseCase) outputYAML(
 	w io.Writer,
 	activities []entities.ObserverActivity,
 	groupBy interfaces.GroupByUnit,
 ) error {
-	writer := csv.NewWriter(w)
-	defer writer.Flush()
-	
-	// Write header
-	header := []string{"Observer Index", "Address", "Total Count"}
-	
-	// Add group-specific headers
-	if groupBy == interfaces.GroupByDay {
-		// Get all unique days.
-		days := make(map[string]bool)
-		for _, activity := range activities {
-			for day := range activity.DailyCount {
-				days[day] = true
-			}
-		}
-		
-		// Sort days.
-		sortedDays := make([]string, 0, len(days))
-		for day := range days {
-			sortedDays = append(sortedDays, day)
-		}
-		sort.Strings(sortedDays)
-		
-		header = append(header, sortedDays...)
+	// First convert to JSON
+	output := map[string]interface{}{
+		"groupBy":    groupBy,
+		"activities": activities,
 	}
 	
-	if err := writer.Write(header); err != nil {
-		return err
+	jsonBytes, err := json.Marshal(output)
+	if err != nil {
+		return fmt.Errorf("failed to marshal to JSON: %w", err)
 	}
 	
-	// Write data
-	for _, activity := range activities {
-		row := []string{
-			fmt.Sprintf("%d", activity.ObserverIndex),
-			activity.Address.Hex(),
-			fmt.Sprintf("%d", activity.TotalCount),
-		}
-		
-		if groupBy == interfaces.GroupByDay {
-			// Add daily counts.
-			for i := 3; i < len(header); i++ {
-				day := header[i]
-				count := activity.DailyCount[day]
-				row = append(row, fmt.Sprintf("%d", count))
-			}
-		}
-		
-		if err := writer.Write(row); err != nil {
-			return err
-		}
+	// Then convert JSON to YAML
+	var data interface{}
+	if err := json.Unmarshal(jsonBytes, &data); err != nil {
+		return fmt.Errorf("failed to unmarshal JSON for YAML conversion: %w", err)
 	}
 	
-	return nil
-}
-
-// outputText outputs observer activities as formatted text.
-func (uc *parseTransmissionsUseCase) outputText(
-	w io.Writer,
-	activities []entities.ObserverActivity,
-	groupBy interfaces.GroupByUnit,
-) error {
-	// Sort activities by observer index.
-	sort.Slice(activities, func(i, j int) bool {
-		return activities[i].ObserverIndex < activities[j].ObserverIndex
-	})
-	
-	// Print header.
-	_, _ = fmt.Fprintf(w, "Observer Activity Report\n")
-	_, _ = fmt.Fprintf(w, "========================\n")
-	_, _ = fmt.Fprintf(w, "Group By: %s\n\n", groupBy)
-	
-	// Print table header.
-	switch groupBy {
-	case interfaces.GroupByDay:
-		_, _ = fmt.Fprintf(w, "%-5s %-44s %-10s %s\n", "Index", "Address", "Total", "Daily Activity")
-		_, _ = fmt.Fprintf(w, "%s\n", strings.Repeat("-", 100))
-	case interfaces.GroupByMonth:
-		_, _ = fmt.Fprintf(w, "%-5s %-44s %-10s %s\n", "Index", "Address", "Total", "Monthly Activity")
-		_, _ = fmt.Fprintf(w, "%s\n", strings.Repeat("-", 100))
-	default:
-		_, _ = fmt.Fprintf(w, "%-5s %-44s %-10s\n", "Index", "Address", "Total")
-		_, _ = fmt.Fprintf(w, "%s\n", strings.Repeat("-", 60))
+	yamlBytes, err := yaml.Marshal(data)
+	if err != nil {
+		return fmt.Errorf("failed to marshal to YAML: %w", err)
 	}
 	
-	// Print data.
-	for _, activity := range activities {
-		_, _ = fmt.Fprintf(w, "%-5d %-44s %-10d",
-			activity.ObserverIndex,
-			activity.Address.Hex(),
-			activity.TotalCount)
-		
-		switch groupBy {
-		case interfaces.GroupByDay:
-			// Sort and print daily counts.
-			days := make([]string, 0, len(activity.DailyCount))
-			for day := range activity.DailyCount {
-				days = append(days, day)
-			}
-			sort.Strings(days)
-			
-			dailyStr := make([]string, 0, len(days))
-			for _, day := range days {
-				if count := activity.DailyCount[day]; count > 0 {
-					dailyStr = append(dailyStr, fmt.Sprintf("%s:%d", day, count))
-				}
-			}
-			_, _ = fmt.Fprintf(w, " %s", strings.Join(dailyStr, ", "))
-		case interfaces.GroupByMonth:
-			// Sort and print monthly counts.
-			months := make([]string, 0, len(activity.MonthlyCount))
-			for month := range activity.MonthlyCount {
-				months = append(months, month)
-			}
-			sort.Strings(months)
-			
-			monthlyStr := make([]string, 0, len(months))
-			for _, month := range months {
-				if count := activity.MonthlyCount[month]; count > 0 {
-					monthlyStr = append(monthlyStr, fmt.Sprintf("%s:%d", month, count))
-				}
-			}
-			_, _ = fmt.Fprintf(w, " %s", strings.Join(monthlyStr, ", "))
-		}
-		
-		_, _ = fmt.Fprintln(w)
-	}
-	
-	// Print summary.
-	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintf(w, "Summary\n")
-	_, _ = fmt.Fprintf(w, "-------\n")
-	_, _ = fmt.Fprintf(w, "Total Observers: %d\n", len(activities))
-	
-	totalTransmissions := 0
-	for _, activity := range activities {
-		totalTransmissions += activity.TotalCount
-	}
-	_, _ = fmt.Fprintf(w, "Total Transmissions: %d\n", totalTransmissions)
-	
-	return nil
+	_, err = w.Write(yamlBytes)
+	return err
 }

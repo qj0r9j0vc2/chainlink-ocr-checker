@@ -84,8 +84,6 @@ type OutputFormat string
 const (
 	OutputFormatJSON OutputFormat = "json"
 	OutputFormatYAML OutputFormat = "yaml"
-	OutputFormatText OutputFormat = "text"
-	OutputFormatCSV  OutputFormat = "csv"
 )
 
 // TransmissionAnalyzer analyzes transmission patterns.

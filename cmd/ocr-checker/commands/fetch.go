@@ -14,7 +14,7 @@ import (
 	"chainlink-ocr-checker/infrastructure/config"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 // NewFetchCommand creates the fetch command.
@@ -97,6 +97,11 @@ observer indices, and block information.`,
 
 // saveResults saves the transmission results to a file.
 func saveResults(result *entities.TransmissionResult, path string, format string) error {
+	// Validate format
+	if err := ValidateFormat(format); err != nil {
+		return err
+	}
+
 	// Create directory if needed.
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0750); err != nil {
@@ -115,15 +120,35 @@ func saveResults(result *entities.TransmissionResult, path string, format string
 		}
 	}()
 
-	// Encode based on format.
+	// First convert to JSON
+	jsonBytes, err := json.Marshal(result)
+	if err != nil {
+		return fmt.Errorf("failed to marshal to JSON: %w", err)
+	}
+
+	// Then convert based on desired format
 	switch format {
 	case OutputFormatJSON:
+		var prettyJSON interface{}
+		if err := json.Unmarshal(jsonBytes, &prettyJSON); err != nil {
+			return fmt.Errorf("failed to unmarshal JSON: %w", err)
+		}
 		encoder := json.NewEncoder(file)
 		encoder.SetIndent("", "  ")
-		return encoder.Encode(result)
-	case "yaml":
-		encoder := yaml.NewEncoder(file)
-		return encoder.Encode(result)
+		return encoder.Encode(prettyJSON)
+
+	case OutputFormatYAML:
+		var data interface{}
+		if err := json.Unmarshal(jsonBytes, &data); err != nil {
+			return fmt.Errorf("failed to unmarshal JSON for YAML conversion: %w", err)
+		}
+		yamlBytes, err := yaml.Marshal(data)
+		if err != nil {
+			return fmt.Errorf("failed to marshal to YAML: %w", err)
+		}
+		_, err = file.Write(yamlBytes)
+		return err
+
 	default:
 		return fmt.Errorf("unsupported format: %s", format)
 	}

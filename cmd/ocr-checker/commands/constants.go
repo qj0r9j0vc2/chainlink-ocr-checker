@@ -7,10 +7,4 @@ const (
 	OutputFormatJSON = "json"
 	// OutputFormatYAML represents YAML output format.
 	OutputFormatYAML = "yaml"
-	// OutputFormatTable represents table output format.
-	OutputFormatTable = "table"
-	// OutputFormatText represents text output format.
-	OutputFormatText = "text"
-	// OutputFormatCSV represents CSV output format.
-	OutputFormatCSV = "csv"
 )
