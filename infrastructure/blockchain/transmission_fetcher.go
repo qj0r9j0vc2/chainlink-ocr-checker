@@ -38,6 +38,16 @@ func NewTransmissionFetcher(
 	}
 }
 
+// NewOptimizedTransmissionFetcher creates a new optimized transmission fetcher.
+// This should be used in production environments.
+func NewOptimizedTransmissionFetcher(
+	blockchainClient interfaces.BlockchainClient,
+	aggregatorService interfaces.OCR2AggregatorService,
+	logger interfaces.Logger,
+) interfaces.TransmissionFetcher {
+	return NewTransmissionFetcherOptimized(blockchainClient, aggregatorService, logger)
+}
+
 // FetchByRounds fetches transmissions for a range of rounds.
 func (f *transmissionFetcher) FetchByRounds(
 	ctx context.Context,

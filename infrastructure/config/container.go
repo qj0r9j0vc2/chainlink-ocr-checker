@@ -128,8 +128,12 @@ func (c *Container) initServices() {
 	// OCR2 Aggregator Service.
 	c.OCR2AggregatorService = blockchain.NewOCR2AggregatorService(c.EthClient, c.Config.ChainID)
 
-	// Transmission Fetcher.
-	c.TransmissionFetcher = blockchain.NewTransmissionFetcher(c.BlockchainClient, c.OCR2AggregatorService)
+	// Transmission Fetcher - Use optimized version for production.
+	c.TransmissionFetcher = blockchain.NewOptimizedTransmissionFetcher(
+		c.BlockchainClient, 
+		c.OCR2AggregatorService,
+		c.Logger,
+	)
 
 	// Transmission Analyzer.
 	c.TransmissionAnalyzer = services.NewTransmissionAnalyzer(c.Logger)
