@@ -16,7 +16,7 @@ import (
 
 const (
 	maxConcurrency       = 30
-	defaultBlockInterval = 10000
+	defaultBlockInterval = 5000 // Most RPC providers limit to 5000 blocks per request
 )
 
 // transmissionFetcher implements the TransmissionFetcher interface.

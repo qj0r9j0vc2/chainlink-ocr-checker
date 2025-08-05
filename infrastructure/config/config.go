@@ -46,7 +46,7 @@ func LoadConfig(configPath string) (*Config, error) {
 	v.SetDefault("log_level", "info")
 	v.SetDefault("blockchain_timeout", "30s")
 	v.SetDefault("max_concurrency", 30)
-	v.SetDefault("default_block_interval", 10000)
+	v.SetDefault("default_block_interval", 5000)
 	v.SetDefault("database.sslMode", "disable")
 	v.SetDefault("database.max_idle_conns", 10)
 	v.SetDefault("database.max_open_conns", 100)
