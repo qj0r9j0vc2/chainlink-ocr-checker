@@ -1,6 +1,9 @@
+// Package main is the main entry point for the ocr-checker CLI application.
+// It sets up the root command and initializes the application configuration.
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"chainlink-ocr-checker/cmd/ocr-checker/commands"
@@ -9,7 +12,12 @@ import (
 )
 
 func main() {
-	// Create root command
+	exitCode := run()
+	os.Exit(exitCode)
+}
+
+func run() int {
+	// Create root command.
 	rootCmd := &cobra.Command{
 		Use:   "ocr-checker",
 		Short: "Chainlink OCR2 monitoring tool",
@@ -17,28 +25,32 @@ func main() {
 and protocol performance across different blockchain networks.`,
 	}
 	
-	// Global flags
+	// Global flags.
 	var configPath string
 	rootCmd.PersistentFlags().StringVarP(&configPath, "config", "c", "", "config file path")
 	
-	// Load configuration
+	// Load configuration.
 	cfg, err := config.LoadConfig(configPath)
 	if err != nil {
-		// For some commands, config might not be required
+		// For some commands, config might not be required.
 		cfg = &config.Config{
 			LogLevel: "info",
 		}
 	}
 	
-	// Create dependency container
+	// Create dependency container.
 	container, err := config.NewContainer(cfg)
 	if err != nil {
 		rootCmd.PrintErrf("Failed to initialize: %v\n", err)
-		os.Exit(1)
+		return 1
 	}
-	defer container.Close()
+	defer func() {
+		if err := container.Close(); err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "Failed to close container: %v\n", err)
+		}
+	}()
 	
-	// Add commands
+	// Add commands.
 	rootCmd.AddCommand(
 		commands.NewFetchCommand(container),
 		commands.NewWatchCommand(container),
@@ -46,8 +58,10 @@ and protocol performance across different blockchain networks.`,
 		commands.NewVersionCommand(),
 	)
 	
-	// Execute
+	// Execute.
 	if err := rootCmd.Execute(); err != nil {
-		os.Exit(1)
+		return 1
 	}
+	
+	return 0
 }

@@ -1,3 +1,5 @@
+// Package repository provides data persistence implementations for the OCR checker application.
+// It contains GORM-based repositories for jobs, transmissions, and unit of work patterns.
 package repository
 
 import (
@@ -5,7 +7,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// unitOfWork implements the UnitOfWork interface
+// unitOfWork implements the UnitOfWork interface.
 type unitOfWork struct {
 	db                     *gorm.DB
 	tx                     *gorm.DB
@@ -13,28 +15,28 @@ type unitOfWork struct {
 	transmissionRepository interfaces.TransmissionRepository
 }
 
-// NewUnitOfWork creates a new unit of work
+// NewUnitOfWork creates a new unit of work.
 func NewUnitOfWork(db *gorm.DB) interfaces.UnitOfWork {
 	return &unitOfWork{
 		db: db,
 	}
 }
 
-// Begin starts a new transaction
+// Begin starts a new transaction.
 func (u *unitOfWork) Begin() error {
 	u.tx = u.db.Begin()
 	if u.tx.Error != nil {
 		return u.tx.Error
 	}
 
-	// Initialize repositories with transaction
+	// Initialize repositories with transaction.
 	u.jobRepository = NewJobRepository(u.tx)
 	u.transmissionRepository = NewTransmissionRepository(u.tx)
 
 	return nil
 }
 
-// Jobs returns the job repository
+// Jobs returns the job repository.
 func (u *unitOfWork) Jobs() interfaces.JobRepository {
 	if u.jobRepository == nil {
 		if u.tx != nil {
@@ -46,7 +48,7 @@ func (u *unitOfWork) Jobs() interfaces.JobRepository {
 	return u.jobRepository
 }
 
-// Transmissions returns the transmission repository
+// Transmissions returns the transmission repository.
 func (u *unitOfWork) Transmissions() interfaces.TransmissionRepository {
 	if u.transmissionRepository == nil {
 		if u.tx != nil {
@@ -58,7 +60,7 @@ func (u *unitOfWork) Transmissions() interfaces.TransmissionRepository {
 	return u.transmissionRepository
 }
 
-// Commit commits the transaction
+// Commit commits the transaction.
 func (u *unitOfWork) Commit() error {
 	if u.tx == nil {
 		return nil
@@ -69,7 +71,7 @@ func (u *unitOfWork) Commit() error {
 	return err
 }
 
-// Rollback rolls back the transaction
+// Rollback rolls back the transaction.
 func (u *unitOfWork) Rollback() error {
 	if u.tx == nil {
 		return nil

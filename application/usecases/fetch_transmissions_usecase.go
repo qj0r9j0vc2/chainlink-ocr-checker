@@ -1,3 +1,5 @@
+// Package usecases contains application use cases that orchestrate business logic.
+// It implements the primary operations for fetching, parsing, and watching OCR transmissions.
 package usecases
 
 import (
@@ -10,14 +12,14 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-// fetchTransmissionsUseCase implements the FetchTransmissionsUseCase interface
+// fetchTransmissionsUseCase implements the FetchTransmissionsUseCase interface.
 type fetchTransmissionsUseCase struct {
 	transmissionFetcher    interfaces.TransmissionFetcher
 	transmissionRepository interfaces.TransmissionRepository
 	logger                 interfaces.Logger
 }
 
-// NewFetchTransmissionsUseCase creates a new fetch transmissions use case
+// NewFetchTransmissionsUseCase creates a new fetch transmissions use case.
 func NewFetchTransmissionsUseCase(
 	transmissionFetcher interfaces.TransmissionFetcher,
 	transmissionRepository interfaces.TransmissionRepository,
@@ -30,8 +32,11 @@ func NewFetchTransmissionsUseCase(
 	}
 }
 
-// Execute fetches transmissions for the given parameters
-func (uc *fetchTransmissionsUseCase) Execute(ctx context.Context, params interfaces.FetchTransmissionsParams) (*entities.TransmissionResult, error) {
+// Execute fetches transmissions for the given parameters.
+func (uc *fetchTransmissionsUseCase) Execute(
+	ctx context.Context,
+	params interfaces.FetchTransmissionsParams,
+) (*entities.TransmissionResult, error) {
 	// Validate parameters
 	if err := uc.validateParams(params); err != nil {
 		return nil, err
@@ -43,7 +48,12 @@ func (uc *fetchTransmissionsUseCase) Execute(ctx context.Context, params interfa
 		"endRound", params.EndRound)
 
 	// Fetch transmissions from blockchain
-	result, err := uc.transmissionFetcher.FetchByRounds(ctx, params.ContractAddress, params.StartRound, params.EndRound)
+	result, err := uc.transmissionFetcher.FetchByRounds(
+		ctx,
+		params.ContractAddress,
+		params.StartRound,
+		params.EndRound,
+	)
 	if err != nil {
 		uc.logger.Error("Failed to fetch transmissions", "error", err)
 		return nil, err
@@ -64,7 +74,7 @@ func (uc *fetchTransmissionsUseCase) Execute(ctx context.Context, params interfa
 	return result, nil
 }
 
-// validateParams validates the fetch parameters
+// validateParams validates the fetch parameters.
 func (uc *fetchTransmissionsUseCase) validateParams(params interfaces.FetchTransmissionsParams) error {
 	validationErr := &errors.ValidationError{}
 
@@ -73,7 +83,10 @@ func (uc *fetchTransmissionsUseCase) validateParams(params interfaces.FetchTrans
 	}
 
 	if params.StartRound > params.EndRound {
-		validationErr.AddFieldError("rounds", fmt.Sprintf("invalid range: start=%d > end=%d", params.StartRound, params.EndRound))
+		validationErr.AddFieldError(
+			"rounds",
+			fmt.Sprintf("invalid range: start=%d > end=%d", params.StartRound, params.EndRound),
+		)
 	}
 
 	if params.EndRound-params.StartRound > 10000 {
@@ -87,9 +100,12 @@ func (uc *fetchTransmissionsUseCase) validateParams(params interfaces.FetchTrans
 	return nil
 }
 
-// saveTransmissions saves transmissions to the repository
-func (uc *fetchTransmissionsUseCase) saveTransmissions(ctx context.Context, transmissions []entities.Transmission) error {
-	// Save in batches to avoid overwhelming the database
+// saveTransmissions saves transmissions to the repository.
+func (uc *fetchTransmissionsUseCase) saveTransmissions(
+	ctx context.Context,
+	transmissions []entities.Transmission,
+) error {
+	// Save in batches to avoid overwhelming the database.
 	batchSize := 100
 	for i := 0; i < len(transmissions); i += batchSize {
 		end := i + batchSize

@@ -1,3 +1,5 @@
+// Package utils provides utility functions and helpers for the OCR checker application.
+// It contains common utilities for logging, formatting, and data processing.
 package utils
 
 import (

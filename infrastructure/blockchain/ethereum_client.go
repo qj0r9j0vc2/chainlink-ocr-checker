@@ -1,3 +1,5 @@
+// Package blockchain provides blockchain infrastructure implementations for the OCR checker application.
+// It contains Ethereum client wrappers, OCR2 aggregator services, and transmission fetchers.
 package blockchain
 
 import (
@@ -11,13 +13,13 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
-// ethereumClient implements the BlockchainClient interface
+// ethereumClient implements the BlockchainClient interface.
 type ethereumClient struct {
 	client  *ethclient.Client
 	chainID int64
 }
 
-// NewEthereumClient creates a new Ethereum client
+// NewEthereumClient creates a new Ethereum client.
 func NewEthereumClient(rpcURL string, chainID int64) (interfaces.BlockchainClient, error) {
 	client, err := ethclient.Dial(rpcURL)
 	if err != nil {
@@ -28,7 +30,7 @@ func NewEthereumClient(rpcURL string, chainID int64) (interfaces.BlockchainClien
 		}
 	}
 
-	// Verify chain ID
+	// Verify chain ID.
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -57,7 +59,7 @@ func NewEthereumClient(rpcURL string, chainID int64) (interfaces.BlockchainClien
 	}, nil
 }
 
-// GetBlockNumber returns the current block number
+// GetBlockNumber returns the current block number.
 func (c *ethereumClient) GetBlockNumber(ctx context.Context) (uint64, error) {
 	blockNumber, err := c.client.BlockNumber(ctx)
 	if err != nil {
@@ -72,7 +74,7 @@ func (c *ethereumClient) GetBlockNumber(ctx context.Context) (uint64, error) {
 	return blockNumber, nil
 }
 
-// GetBlockByNumber returns block information by block number
+// GetBlockByNumber returns block information by block number.
 func (c *ethereumClient) GetBlockByNumber(ctx context.Context, number *big.Int) (*interfaces.Block, error) {
 	block, err := c.client.BlockByNumber(ctx, number)
 	if err != nil {
@@ -86,14 +88,14 @@ func (c *ethereumClient) GetBlockByNumber(ctx context.Context, number *big.Int) 
 
 	return &interfaces.Block{
 		Number:    block.NumberU64(),
-		Timestamp: time.Unix(int64(block.Time()), 0),
+		Timestamp: time.Unix(int64(block.Time()), 0), // #nosec G115 -- block timestamp is always valid
 		Hash:      block.Hash(),
 	}, nil
 }
 
-// GetBlockByTimestamp returns the block number closest to the given timestamp
+// GetBlockByTimestamp returns the block number closest to the given timestamp.
 func (c *ethereumClient) GetBlockByTimestamp(ctx context.Context, targetTime time.Time) (uint64, error) {
-	// Get current block
+	// Get current block.
 	currentBlock, err := c.client.BlockByNumber(ctx, nil)
 	if err != nil {
 		return 0, &errors.BlockchainError{
@@ -103,28 +105,28 @@ func (c *ethereumClient) GetBlockByTimestamp(ctx context.Context, targetTime tim
 		}
 	}
 
-	// Binary search for the target block
+	// Binary search for the target block.
 	targetTimestamp := targetTime.Unix()
 	low := uint64(0)
 	high := currentBlock.NumberU64()
 
-	// Estimate average block time (adjust based on chain)
+	// Estimate average block time (adjust based on chain).
 	avgBlockTime := int64(12) // Ethereum mainnet average
 	if c.chainID == 137 {
 		avgBlockTime = 2 // Polygon
 	}
 
-	// Initial estimate
-	currentTime := int64(currentBlock.Time())
+	// Initial estimate.
+	currentTime := int64(currentBlock.Time()) // #nosec G115 -- block timestamp is always valid
 	timeDiff := currentTime - targetTimestamp
 	blocksDiff := timeDiff / avgBlockTime
 
-	estimatedBlock := int64(high) - blocksDiff
+	estimatedBlock := int64(high) - blocksDiff // #nosec G115 -- high is always positive
 	if estimatedBlock < 0 {
 		estimatedBlock = 0
 	}
 
-	// Binary search with optimization
+	// Binary search with optimization.
 	maxIterations := 50
 	for i := 0; i < maxIterations && low <= high; i++ {
 		var mid uint64
@@ -134,7 +136,7 @@ func (c *ethereumClient) GetBlockByTimestamp(ctx context.Context, targetTime tim
 			mid = (low + high) / 2
 		}
 
-		block, err := c.client.BlockByNumber(ctx, big.NewInt(int64(mid)))
+		block, err := c.client.BlockByNumber(ctx, big.NewInt(int64(mid))) // #nosec G115 -- mid is always positive
 		if err != nil {
 			return 0, &errors.BlockchainError{
 				Operation:   "GetBlockByTimestamp.Search",
@@ -144,19 +146,20 @@ func (c *ethereumClient) GetBlockByTimestamp(ctx context.Context, targetTime tim
 			}
 		}
 
-		blockTime := int64(block.Time())
+		blockTime := int64(block.Time()) // #nosec G115 -- block timestamp is always valid
 
-		if blockTime == targetTimestamp {
+		switch {
+		case blockTime == targetTimestamp:
 			return mid, nil
-		} else if blockTime < targetTimestamp {
+		case blockTime < targetTimestamp:
 			low = mid + 1
-		} else {
+		default:
 			high = mid - 1
 		}
 
-		// If we're close enough (within 1 block), return
+		// If we're close enough (within 1 block), return.
 		if high-low <= 1 {
-			// Return the block that's closest to target time
+			// Return the block that's closest to target time.
 			if targetTimestamp-blockTime < avgBlockTime {
 				return mid, nil
 			}
@@ -164,11 +167,11 @@ func (c *ethereumClient) GetBlockByTimestamp(ctx context.Context, targetTime tim
 		}
 	}
 
-	// Return the best estimate we found
+	// Return the best estimate we found.
 	return (low + high) / 2, nil
 }
 
-// Close closes the blockchain client connection
+// Close closes the blockchain client connection.
 func (c *ethereumClient) Close() error {
 	c.client.Close()
 	return nil

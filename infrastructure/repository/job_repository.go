@@ -11,18 +11,21 @@ import (
 	"gorm.io/gorm"
 )
 
-// jobRepository implements the JobRepository interface
+// jobRepository implements the JobRepository interface.
 type jobRepository struct {
 	db *gorm.DB
 }
 
-// NewJobRepository creates a new job repository
+// NewJobRepository creates a new job repository.
 func NewJobRepository(db *gorm.DB) interfaces.JobRepository {
 	return &jobRepository{db: db}
 }
 
-// FindByTransmitter finds jobs by transmitter address
-func (r *jobRepository) FindByTransmitter(ctx context.Context, transmitterAddress common.Address) ([]entities.Job, error) {
+// FindByTransmitter finds jobs by transmitter address.
+func (r *jobRepository) FindByTransmitter(
+	ctx context.Context,
+	transmitterAddress common.Address,
+) ([]entities.Job, error) {
 	var jobs []entities.Job
 
 	query := r.db.WithContext(ctx).
@@ -60,7 +63,7 @@ func (r *jobRepository) FindByTransmitter(ctx context.Context, transmitterAddres
 	return jobs, nil
 }
 
-// FindByContract finds jobs by contract address
+// FindByContract finds jobs by contract address.
 func (r *jobRepository) FindByContract(ctx context.Context, contractAddress common.Address) ([]entities.Job, error) {
 	var jobs []entities.Job
 
@@ -91,8 +94,11 @@ func (r *jobRepository) FindByContract(ctx context.Context, contractAddress comm
 	return jobs, nil
 }
 
-// FindByFilter finds jobs matching the given filter
-func (r *jobRepository) FindByFilter(ctx context.Context, filter entities.JobFilter) (*entities.JobSearchResult, error) {
+// FindByFilter finds jobs matching the given filter.
+func (r *jobRepository) FindByFilter(
+	ctx context.Context,
+	filter entities.JobFilter,
+) (*entities.JobSearchResult, error) {
 	var jobs []entities.Job
 	var totalCount int64
 
@@ -159,7 +165,7 @@ func (r *jobRepository) FindByFilter(ctx context.Context, filter entities.JobFil
 	}, nil
 }
 
-// FindByID finds a job by its ID
+// FindByID finds a job by its ID.
 func (r *jobRepository) FindByID(ctx context.Context, id int32) (*entities.Job, error) {
 	var job entities.Job
 
@@ -193,7 +199,7 @@ func (r *jobRepository) FindByID(ctx context.Context, id int32) (*entities.Job, 
 	return &job, nil
 }
 
-// FindActiveJobs returns all active jobs
+// FindActiveJobs returns all active jobs.
 func (r *jobRepository) FindActiveJobs(ctx context.Context) ([]entities.Job, error) {
 	var jobs []entities.Job
 

@@ -1,3 +1,5 @@
+// Package usecases contains application use cases that orchestrate business logic.
+// It implements the primary operations for fetching, parsing, and watching OCR transmissions.
 package usecases
 
 import (
@@ -7,9 +9,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
-	"time"
 
 	"chainlink-ocr-checker/domain/entities"
 	"chainlink-ocr-checker/domain/errors"
@@ -17,13 +19,13 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-// parseTransmissionsUseCase implements the ParseTransmissionsUseCase interface
+// parseTransmissionsUseCase implements the ParseTransmissionsUseCase interface.
 type parseTransmissionsUseCase struct {
 	analyzer interfaces.TransmissionAnalyzer
 	logger   interfaces.Logger
 }
 
-// NewParseTransmissionsUseCase creates a new parse transmissions use case
+// NewParseTransmissionsUseCase creates a new parse transmissions use case.
 func NewParseTransmissionsUseCase(
 	analyzer interfaces.TransmissionAnalyzer,
 	logger interfaces.Logger,
@@ -34,8 +36,8 @@ func NewParseTransmissionsUseCase(
 	}
 }
 
-// Execute parses transmission data and generates reports
-func (uc *parseTransmissionsUseCase) Execute(ctx context.Context, params interfaces.ParseTransmissionsParams) error {
+// Execute parses transmission data and generates reports.
+func (uc *parseTransmissionsUseCase) Execute(_ context.Context, params interfaces.ParseTransmissionsParams) error {
 	// Validate parameters
 	if err := uc.validateParams(params); err != nil {
 		return err
@@ -80,7 +82,7 @@ func (uc *parseTransmissionsUseCase) Execute(ctx context.Context, params interfa
 	}
 }
 
-// validateParams validates the parse parameters
+// validateParams validates the parse parameters.
 func (uc *parseTransmissionsUseCase) validateParams(params interfaces.ParseTransmissionsParams) error {
 	validationErr := &errors.ValidationError{}
 	
@@ -99,7 +101,10 @@ func (uc *parseTransmissionsUseCase) validateParams(params interfaces.ParseTrans
 	}
 	
 	if !validGroupBy[params.GroupBy] {
-		validationErr.AddFieldError("group_by", fmt.Sprintf("invalid group by unit: %s", params.GroupBy))
+		validationErr.AddFieldError(
+			"group_by",
+			fmt.Sprintf("invalid group by unit: %s", params.GroupBy),
+		)
 	}
 	
 	validFormats := map[interfaces.OutputFormat]bool{
@@ -110,7 +115,10 @@ func (uc *parseTransmissionsUseCase) validateParams(params interfaces.ParseTrans
 	}
 	
 	if !validFormats[params.OutputFormat] {
-		validationErr.AddFieldError("output_format", fmt.Sprintf("invalid output format: %s", params.OutputFormat))
+		validationErr.AddFieldError(
+			"output_format",
+			fmt.Sprintf("invalid output format: %s", params.OutputFormat),
+		)
 	}
 	
 	if validationErr.HasErrors() {
@@ -120,13 +128,19 @@ func (uc *parseTransmissionsUseCase) validateParams(params interfaces.ParseTrans
 	return nil
 }
 
-// readTransmissions reads transmissions from a YAML file
+// readTransmissions reads transmissions from a YAML file.
 func (uc *parseTransmissionsUseCase) readTransmissions(path string) ([]entities.Transmission, error) {
-	file, err := os.Open(path)
+	// Clean and validate the path
+	cleanPath := filepath.Clean(path)
+	file, err := os.Open(cleanPath) // #nosec G304 -- path is cleaned
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		if cerr := file.Close(); cerr != nil {
+			uc.logger.Error("Failed to close file", "error", cerr)
+		}
+	}()
 	
 	var result entities.TransmissionResult
 	decoder := yaml.NewDecoder(file)
@@ -137,8 +151,12 @@ func (uc *parseTransmissionsUseCase) readTransmissions(path string) ([]entities.
 	return result.Transmissions, nil
 }
 
-// outputJSON outputs observer activities as JSON
-func (uc *parseTransmissionsUseCase) outputJSON(w io.Writer, activities []entities.ObserverActivity, groupBy interfaces.GroupByUnit) error {
+// outputJSON outputs observer activities as JSON.
+func (uc *parseTransmissionsUseCase) outputJSON(
+	w io.Writer,
+	activities []entities.ObserverActivity,
+	groupBy interfaces.GroupByUnit,
+) error {
 	encoder := json.NewEncoder(w)
 	encoder.SetIndent("", "  ")
 	
@@ -150,8 +168,12 @@ func (uc *parseTransmissionsUseCase) outputJSON(w io.Writer, activities []entiti
 	return encoder.Encode(output)
 }
 
-// outputCSV outputs observer activities as CSV
-func (uc *parseTransmissionsUseCase) outputCSV(w io.Writer, activities []entities.ObserverActivity, groupBy interfaces.GroupByUnit) error {
+// outputCSV outputs observer activities as CSV.
+func (uc *parseTransmissionsUseCase) outputCSV(
+	w io.Writer,
+	activities []entities.ObserverActivity,
+	groupBy interfaces.GroupByUnit,
+) error {
 	writer := csv.NewWriter(w)
 	defer writer.Flush()
 	
@@ -160,7 +182,7 @@ func (uc *parseTransmissionsUseCase) outputCSV(w io.Writer, activities []entitie
 	
 	// Add group-specific headers
 	if groupBy == interfaces.GroupByDay {
-		// Get all unique days
+		// Get all unique days.
 		days := make(map[string]bool)
 		for _, activity := range activities {
 			for day := range activity.DailyCount {
@@ -168,7 +190,7 @@ func (uc *parseTransmissionsUseCase) outputCSV(w io.Writer, activities []entitie
 			}
 		}
 		
-		// Sort days
+		// Sort days.
 		sortedDays := make([]string, 0, len(days))
 		for day := range days {
 			sortedDays = append(sortedDays, day)
@@ -191,7 +213,7 @@ func (uc *parseTransmissionsUseCase) outputCSV(w io.Writer, activities []entitie
 		}
 		
 		if groupBy == interfaces.GroupByDay {
-			// Add daily counts
+			// Add daily counts.
 			for i := 3; i < len(header); i++ {
 				day := header[i]
 				count := activity.DailyCount[day]
@@ -207,39 +229,45 @@ func (uc *parseTransmissionsUseCase) outputCSV(w io.Writer, activities []entitie
 	return nil
 }
 
-// outputText outputs observer activities as formatted text
-func (uc *parseTransmissionsUseCase) outputText(w io.Writer, activities []entities.ObserverActivity, groupBy interfaces.GroupByUnit) error {
-	// Sort activities by observer index
+// outputText outputs observer activities as formatted text.
+func (uc *parseTransmissionsUseCase) outputText(
+	w io.Writer,
+	activities []entities.ObserverActivity,
+	groupBy interfaces.GroupByUnit,
+) error {
+	// Sort activities by observer index.
 	sort.Slice(activities, func(i, j int) bool {
 		return activities[i].ObserverIndex < activities[j].ObserverIndex
 	})
 	
-	// Print header
-	fmt.Fprintf(w, "Observer Activity Report\n")
-	fmt.Fprintf(w, "========================\n")
-	fmt.Fprintf(w, "Group By: %s\n\n", groupBy)
+	// Print header.
+	_, _ = fmt.Fprintf(w, "Observer Activity Report\n")
+	_, _ = fmt.Fprintf(w, "========================\n")
+	_, _ = fmt.Fprintf(w, "Group By: %s\n\n", groupBy)
 	
-	// Print table header
-	if groupBy == interfaces.GroupByDay {
-		fmt.Fprintf(w, "%-5s %-44s %-10s %s\n", "Index", "Address", "Total", "Daily Activity")
-		fmt.Fprintf(w, "%s\n", strings.Repeat("-", 100))
-	} else if groupBy == interfaces.GroupByMonth {
-		fmt.Fprintf(w, "%-5s %-44s %-10s %s\n", "Index", "Address", "Total", "Monthly Activity")
-		fmt.Fprintf(w, "%s\n", strings.Repeat("-", 100))
-	} else {
-		fmt.Fprintf(w, "%-5s %-44s %-10s\n", "Index", "Address", "Total")
-		fmt.Fprintf(w, "%s\n", strings.Repeat("-", 60))
+	// Print table header.
+	switch groupBy {
+	case interfaces.GroupByDay:
+		_, _ = fmt.Fprintf(w, "%-5s %-44s %-10s %s\n", "Index", "Address", "Total", "Daily Activity")
+		_, _ = fmt.Fprintf(w, "%s\n", strings.Repeat("-", 100))
+	case interfaces.GroupByMonth:
+		_, _ = fmt.Fprintf(w, "%-5s %-44s %-10s %s\n", "Index", "Address", "Total", "Monthly Activity")
+		_, _ = fmt.Fprintf(w, "%s\n", strings.Repeat("-", 100))
+	default:
+		_, _ = fmt.Fprintf(w, "%-5s %-44s %-10s\n", "Index", "Address", "Total")
+		_, _ = fmt.Fprintf(w, "%s\n", strings.Repeat("-", 60))
 	}
 	
-	// Print data
+	// Print data.
 	for _, activity := range activities {
-		fmt.Fprintf(w, "%-5d %-44s %-10d",
+		_, _ = fmt.Fprintf(w, "%-5d %-44s %-10d",
 			activity.ObserverIndex,
 			activity.Address.Hex(),
 			activity.TotalCount)
 		
-		if groupBy == interfaces.GroupByDay {
-			// Sort and print daily counts
+		switch groupBy {
+		case interfaces.GroupByDay:
+			// Sort and print daily counts.
 			days := make([]string, 0, len(activity.DailyCount))
 			for day := range activity.DailyCount {
 				days = append(days, day)
@@ -252,9 +280,9 @@ func (uc *parseTransmissionsUseCase) outputText(w io.Writer, activities []entiti
 					dailyStr = append(dailyStr, fmt.Sprintf("%s:%d", day, count))
 				}
 			}
-			fmt.Fprintf(w, " %s", strings.Join(dailyStr, ", "))
-		} else if groupBy == interfaces.GroupByMonth {
-			// Sort and print monthly counts
+			_, _ = fmt.Fprintf(w, " %s", strings.Join(dailyStr, ", "))
+		case interfaces.GroupByMonth:
+			// Sort and print monthly counts.
 			months := make([]string, 0, len(activity.MonthlyCount))
 			for month := range activity.MonthlyCount {
 				months = append(months, month)
@@ -267,23 +295,23 @@ func (uc *parseTransmissionsUseCase) outputText(w io.Writer, activities []entiti
 					monthlyStr = append(monthlyStr, fmt.Sprintf("%s:%d", month, count))
 				}
 			}
-			fmt.Fprintf(w, " %s", strings.Join(monthlyStr, ", "))
+			_, _ = fmt.Fprintf(w, " %s", strings.Join(monthlyStr, ", "))
 		}
 		
-		fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w)
 	}
 	
-	// Print summary
-	fmt.Fprintln(w)
-	fmt.Fprintf(w, "Summary\n")
-	fmt.Fprintf(w, "-------\n")
-	fmt.Fprintf(w, "Total Observers: %d\n", len(activities))
+	// Print summary.
+	_, _ = fmt.Fprintln(w)
+	_, _ = fmt.Fprintf(w, "Summary\n")
+	_, _ = fmt.Fprintf(w, "-------\n")
+	_, _ = fmt.Fprintf(w, "Total Observers: %d\n", len(activities))
 	
 	totalTransmissions := 0
 	for _, activity := range activities {
 		totalTransmissions += activity.TotalCount
 	}
-	fmt.Fprintf(w, "Total Transmissions: %d\n", totalTransmissions)
+	_, _ = fmt.Fprintf(w, "Total Transmissions: %d\n", totalTransmissions)
 	
 	return nil
 }

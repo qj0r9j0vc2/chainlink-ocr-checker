@@ -6,7 +6,6 @@ package e2e
 import (
 	"os"
 	"os/exec"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -24,7 +23,7 @@ func TestFetchCommand_E2E(t *testing.T) {
 	buildCmd := exec.Command("go", "build", "-o", "ocr-checker-test", ".")
 	err := buildCmd.Run()
 	require.NoError(t, err)
-	defer os.Remove("ocr-checker-test")
+	defer func() { _ = os.Remove("ocr-checker-test") }()
 	
 	// Create test config
 	configPath := "test-config.toml"
@@ -33,14 +32,14 @@ log_level = "info"
 chain_id = 137
 rpc_addr = "https://polygon-rpc.com"
 `
-	err = os.WriteFile(configPath, []byte(configContent), 0644)
+	err = os.WriteFile(configPath, []byte(configContent), 0600)
 	require.NoError(t, err)
-	defer os.Remove(configPath)
+	defer func() { _ = os.Remove(configPath) }()
 	
 	// Test fetch command
 	t.Run("fetch command with valid parameters", func(t *testing.T) {
 		outputPath := "test-results.yaml"
-		defer os.Remove(outputPath)
+		defer func() { _ = os.Remove(outputPath) }()
 		
 		cmd := exec.Command("./ocr-checker-test", 
 			"fetch",
@@ -86,7 +85,7 @@ func TestParseCommand_E2E(t *testing.T) {
 	buildCmd := exec.Command("go", "build", "-o", "ocr-checker-test", ".")
 	err := buildCmd.Run()
 	require.NoError(t, err)
-	defer os.Remove("ocr-checker-test")
+	defer func() { _ = os.Remove("ocr-checker-test") }()
 	
 	// Create test input file
 	inputPath := "test-input.yaml"
@@ -110,9 +109,9 @@ func TestParseCommand_E2E(t *testing.T) {
 	data, err := yaml.Marshal(testData)
 	require.NoError(t, err)
 	
-	err = os.WriteFile(inputPath, data, 0644)
+	err = os.WriteFile(inputPath, data, 0600)
 	require.NoError(t, err)
-	defer os.Remove(inputPath)
+	defer func() { _ = os.Remove(inputPath) }()
 	
 	// Test parse command
 	t.Run("parse command with day grouping", func(t *testing.T) {
@@ -128,7 +127,7 @@ func TestParseCommand_E2E(t *testing.T) {
 		
 		output, err := cmd.CombinedOutput()
 		require.NoError(t, err, "Command output: %s", output)
-		defer os.Remove(outputPath)
+		defer func() { _ = os.Remove(outputPath) }()
 		
 		// Check output file exists
 		_, err = os.Stat(outputPath)
@@ -147,7 +146,7 @@ func TestVersionCommand_E2E(t *testing.T) {
 	buildCmd := exec.Command("go", "build", "-o", "ocr-checker-test", ".")
 	err := buildCmd.Run()
 	require.NoError(t, err)
-	defer os.Remove("ocr-checker-test")
+	defer func() { _ = os.Remove("ocr-checker-test") }()
 	
 	// Test version command
 	cmd := exec.Command("./ocr-checker-test", "version")

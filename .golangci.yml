@@ -1,16 +1,26 @@
+version: 2
+
+run:
+  timeout: 5m
+  tests: true
+  build-tags:
+    - integration
+    - e2e
+  skip-dirs:
+    - vendor
+    - third_party
+    - testdata
+    - examples
+    - test/mocks
+
 linters:
+  disable-all: true
   enable:
-    - gofmt
-    - golint
     - govet
     - errcheck
     - staticcheck
-    - gosimple
-    - structcheck
-    - varcheck
     - ineffassign
-    - deadcode
-    - typecheck
+    - unused
     - gosec
     - dupl
     - goconst
@@ -22,40 +32,17 @@ linters:
     - unparam
     - nakedret
     - gocritic
-    - goimports
     - revive
     - unconvert
     - bodyclose
     - noctx
-    - exhaustive
     - sqlclosecheck
     - nolintlint
-    - stylecheck
-    - interfacer
     - whitespace
-    - wsl
     - goprintffuncname
-    - gomnd
-    - goerr113
     - gomodguard
     - godot
-    - testpackage
     - nestif
-    - exportloopref
-    - exhaustivestruct
-    - forcetypeassert
-    - godox
-    - funlen
-
-  disable:
-    - maligned
-    - gochecknoglobals
-    - gochecknoinits
-    - godox
-    - funlen
-    - wsl
-    - gomnd
-    - testpackage
 
 linters-settings:
   gocyclo:
@@ -76,9 +63,6 @@ linters-settings:
   
   lll:
     line-length: 120
-  
-  goimports:
-    local-prefixes: chainlink-ocr-checker
   
   gocritic:
     enabled-tags:
@@ -104,8 +88,9 @@ linters-settings:
       - G304
   
   revive:
+    ignore-generated-header: true
+    severity: warning
     rules:
-      - name: blank-imports
       - name: context-as-argument
       - name: context-keys-type
       - name: dot-imports
@@ -113,21 +98,16 @@ linters-settings:
       - name: error-strings
       - name: error-naming
       - name: if-return
-      - name: increment-decrement
       - name: var-naming
       - name: var-declaration
-      - name: package-comments
       - name: range
       - name: receiver-naming
       - name: time-naming
       - name: unexported-return
       - name: indent-error-flow
       - name: errorf
-      - name: empty-block
       - name: superfluous-else
-      - name: unused-parameter
       - name: unreachable-code
-      - name: redefines-builtin-id
 
 issues:
   exclude-use-default: false
@@ -140,9 +120,8 @@ issues:
         - gosec
         - dupl
         - goconst
-        - funlen
-        - gocognit
         - gocyclo
+        - gocognit
     
     - path: test/
       linters:
@@ -153,22 +132,14 @@ issues:
       linters:
         - gocyclo
         - gocognit
-
-run:
-  skip-dirs:
-    - vendor
-    - third_party
-    - testdata
-    - examples
-    - Godeps
-    - builtin
-  
-  skip-files:
-    - ".*\\.pb\\.go$"
-    - ".*\\.gen\\.go$"
-  
-  timeout: 5m
-  tests: true
-  build-tags:
-    - integration
-    - e2e
+    
+    - path: "mock_"
+      linters: [dupl, gosec, goconst]
+    
+    - text: "at least one file in a package should have a package comment"
+      linters:
+        - revive
+    
+    - text: "should have a package comment"
+      linters:
+        - revive

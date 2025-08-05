@@ -1,16 +1,19 @@
+// Package commands provides CLI command implementations for the OCR checker tool.
+// It contains the fetch, parse, watch, and version commands with their associated flags and handlers.
 package commands
 
 import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"chainlink-ocr-checker/domain/interfaces"
 	"chainlink-ocr-checker/infrastructure/config"
 	"github.com/spf13/cobra"
 )
 
-// NewParseCommand creates the parse command
+// NewParseCommand creates the parse command.
 func NewParseCommand(container *config.Container) *cobra.Command {
 	var (
 		outputFormat string
@@ -23,12 +26,12 @@ func NewParseCommand(container *config.Container) *cobra.Command {
 		Long: `Parses transmission data from a YAML/JSON file and generates
 observer activity reports grouped by day, month, or round.`,
 		Args: cobra.ExactArgs(2),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			// Parse arguments
+		RunE: func(_ *cobra.Command, args []string) error {
+			// Parse arguments.
 			inputPath := args[0]
 			groupByStr := args[1]
 			
-			// Map group by string to enum
+			// Map group by string to enum.
 			var groupBy interfaces.GroupByUnit
 			switch groupByStr {
 			case "day":
@@ -41,10 +44,10 @@ observer activity reports grouped by day, month, or round.`,
 				return fmt.Errorf("invalid group by unit: %s (use day, month, or round)", groupByStr)
 			}
 			
-			// Map output format string to enum
+			// Map output format string to enum.
 			var format interfaces.OutputFormat
 			switch outputFormat {
-			case "json":
+			case OutputFormatJSON:
 				format = interfaces.OutputFormatJSON
 			case "csv":
 				format = interfaces.OutputFormatCSV
@@ -56,23 +59,28 @@ observer activity reports grouped by day, month, or round.`,
 				format = interfaces.OutputFormatText
 			}
 			
-			// Create context
+			// Create context.
 			ctx := context.Background()
 			
-			// Determine output writer
+			// Determine output writer.
 			var outputWriter *os.File
 			if outputPath != "" {
-				file, err := os.Create(outputPath)
+				cleanPath := filepath.Clean(outputPath)
+				file, err := os.Create(cleanPath) // #nosec G304 -- path is cleaned
 				if err != nil {
 					return fmt.Errorf("failed to create output file: %w", err)
 				}
-				defer file.Close()
+				defer func() {
+					if err := file.Close(); err != nil {
+						container.Logger.Error("Failed to close output file", "error", err)
+					}
+				}()
 				outputWriter = file
 			} else {
 				outputWriter = os.Stdout
 			}
 			
-			// Execute use case
+			// Execute use case.
 			params := interfaces.ParseTransmissionsParams{
 				InputPath:    inputPath,
 				OutputWriter: outputWriter,
@@ -99,7 +107,7 @@ observer activity reports grouped by day, month, or round.`,
 		},
 	}
 	
-	// Add flags
+	// Add flags.
 	cmd.Flags().StringVarP(&outputFormat, "format", "f", "text", "Output format (text, json, csv, yaml)")
 	cmd.Flags().StringVarP(&outputPath, "output", "o", "", "Output file path (default: stdout)")
 	

@@ -1,3 +1,5 @@
+// Package entities contains the core domain entities for the OCR checker application.
+// It defines structures for jobs, transmissions, and related data types.
 package entities
 
 import (
@@ -7,7 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-// Transmission represents an OCR transmission event
+// Transmission represents an OCR transmission event.
 type Transmission struct {
 	ContractAddress   common.Address
 	ConfigDigest      [32]byte
@@ -22,7 +24,7 @@ type Transmission struct {
 	BlockTimestamp    time.Time
 }
 
-// TransmissionResult represents aggregated transmission data
+// TransmissionResult represents aggregated transmission data.
 type TransmissionResult struct {
 	ContractAddress common.Address
 	StartRound      uint32
@@ -30,7 +32,7 @@ type TransmissionResult struct {
 	Transmissions   []Transmission
 }
 
-// ObserverActivity represents observer participation statistics
+// ObserverActivity represents observer participation statistics.
 type ObserverActivity struct {
 	ObserverIndex uint8
 	Address       common.Address
@@ -39,7 +41,7 @@ type ObserverActivity struct {
 	MonthlyCount  map[string]int
 }
 
-// TransmitterStatus represents the current status of a transmitter
+// TransmitterStatus represents the current status of a transmitter.
 type TransmitterStatus struct {
 	Address         common.Address
 	JobID           string
@@ -50,9 +52,10 @@ type TransmitterStatus struct {
 	Error           error
 }
 
-// JobStatus represents the status of an OCR job
+// JobStatus represents the status of an OCR job.
 type JobStatus string
 
+// Job status constants.
 const (
 	JobStatusFound    JobStatus = "Found"
 	JobStatusStale    JobStatus = "Stale"
@@ -61,7 +64,7 @@ const (
 	JobStatusError    JobStatus = "Error"
 )
 
-// OCR2Config represents OCR2 configuration
+// OCR2Config represents OCR2 configuration.
 type OCR2Config struct {
 	ConfigDigest       [32]byte
 	Signers            []common.Address
@@ -72,13 +75,13 @@ type OCR2Config struct {
 	Encoded            []byte
 }
 
-// BlockRange represents a range of blocks
+// BlockRange represents a range of blocks.
 type BlockRange struct {
 	StartBlock uint64
 	EndBlock   uint64
 }
 
-// Round represents an OCR round
+// Round represents an OCR round.
 type Round struct {
 	RoundID   uint32
 	Answer    *big.Int

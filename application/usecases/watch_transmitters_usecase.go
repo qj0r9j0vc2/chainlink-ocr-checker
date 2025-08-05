@@ -1,8 +1,9 @@
+// Package usecases contains application use cases that orchestrate business logic.
+// It implements the primary operations for fetching, parsing, and watching OCR transmissions.
 package usecases
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"chainlink-ocr-checker/domain/entities"
@@ -11,7 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-// watchTransmittersUseCase implements the WatchTransmittersUseCase interface
+// watchTransmittersUseCase implements the WatchTransmittersUseCase interface.
 type watchTransmittersUseCase struct {
 	jobRepository      interfaces.JobRepository
 	transmissionFetcher interfaces.TransmissionFetcher
@@ -19,7 +20,7 @@ type watchTransmittersUseCase struct {
 	logger             interfaces.Logger
 }
 
-// NewWatchTransmittersUseCase creates a new watch transmitters use case
+// NewWatchTransmittersUseCase creates a new watch transmitters use case.
 func NewWatchTransmittersUseCase(
 	jobRepository interfaces.JobRepository,
 	transmissionFetcher interfaces.TransmissionFetcher,
@@ -34,8 +35,11 @@ func NewWatchTransmittersUseCase(
 	}
 }
 
-// Execute watches transmitter activity
-func (uc *watchTransmittersUseCase) Execute(ctx context.Context, params interfaces.WatchTransmittersParams) (*interfaces.WatchTransmittersResult, error) {
+// Execute watches transmitter activity.
+func (uc *watchTransmittersUseCase) Execute(
+	ctx context.Context,
+	params interfaces.WatchTransmittersParams,
+) (*interfaces.WatchTransmittersResult, error) {
 	// Validate parameters
 	if err := uc.validateParams(params); err != nil {
 		return nil, err
@@ -105,7 +109,7 @@ func (uc *watchTransmittersUseCase) Execute(ctx context.Context, params interfac
 	}, nil
 }
 
-// validateParams validates the watch parameters
+// validateParams validates the watch parameters.
 func (uc *watchTransmittersUseCase) validateParams(params interfaces.WatchTransmittersParams) error {
 	validationErr := &errors.ValidationError{}
 	
@@ -132,21 +136,26 @@ func (uc *watchTransmittersUseCase) validateParams(params interfaces.WatchTransm
 	return nil
 }
 
-// checkJobStatus checks the status of a single job
-func (uc *watchTransmittersUseCase) checkJobStatus(ctx context.Context, job entities.Job, roundsToCheck int, cutoffTime time.Time) entities.TransmitterStatus {
+// checkJobStatus checks the status of a single job.
+func (uc *watchTransmittersUseCase) checkJobStatus(
+	ctx context.Context,
+	job entities.Job,
+	roundsToCheck int,
+	cutoffTime time.Time,
+) entities.TransmitterStatus {
 	status := entities.TransmitterStatus{
 		Address:         job.TransmitterAddress,
 		JobID:           job.ExternalJobID,
 		ContractAddress: job.OracleSpec.ContractAddress,
 	}
 	
-	// Check if job is active
+	// Check if job is active.
 	if !job.Active {
 		status.Status = entities.JobStatusNoActive
 		return status
 	}
 	
-	// Get latest round from the aggregator
+	// Get latest round from the aggregator.
 	latestRound, err := uc.aggregatorService.GetLatestRound(ctx, job.OracleSpec.ContractAddress)
 	if err != nil {
 		uc.logger.Error("Failed to get latest round",
@@ -157,15 +166,26 @@ func (uc *watchTransmittersUseCase) checkJobStatus(ctx context.Context, job enti
 		return status
 	}
 	
-	// Calculate the round range to check
+	// Calculate the round range to check.
 	endRound := latestRound.RoundID
-	startRound := endRound - uint32(roundsToCheck) + 1
-	if startRound < 1 {
+	var startRound uint32
+	// Safe conversion with bounds check
+	if roundsToCheck > int(endRound) {
 		startRound = 1
+	} else {
+		startRound = endRound - uint32(roundsToCheck) + 1 // #nosec G115 -- bounds checked
+		if startRound < 1 {
+			startRound = 1
+		}
 	}
 	
-	// Fetch transmissions for the round range
-	result, err := uc.transmissionFetcher.FetchByRounds(ctx, job.OracleSpec.ContractAddress, startRound, endRound)
+	// Fetch transmissions for the round range.
+	result, err := uc.transmissionFetcher.FetchByRounds(
+		ctx,
+		job.OracleSpec.ContractAddress,
+		startRound,
+		endRound,
+	)
 	if err != nil {
 		uc.logger.Error("Failed to fetch transmissions",
 			"contract", job.OracleSpec.ContractAddress.Hex(),
@@ -175,7 +195,7 @@ func (uc *watchTransmittersUseCase) checkJobStatus(ctx context.Context, job enti
 		return status
 	}
 	
-	// Find transmissions from our transmitter
+	// Find transmissions from our transmitter.
 	found := false
 	var lastTransmissionTime time.Time
 	
@@ -184,18 +204,19 @@ func (uc *watchTransmittersUseCase) checkJobStatus(ctx context.Context, job enti
 			found = true
 			if tx.BlockTimestamp.After(lastTransmissionTime) {
 				lastTransmissionTime = tx.BlockTimestamp
-				status.LastRound = uint32(tx.Epoch)<<8 | uint32(tx.Round)
+				status.LastRound = tx.Epoch<<8 | uint32(tx.Round)
 				status.LastTimestamp = tx.BlockTimestamp
 			}
 		}
 	}
 	
-	// Determine status based on findings
-	if !found {
+	// Determine status based on findings.
+	switch {
+	case !found:
 		status.Status = entities.JobStatusMissing
-	} else if lastTransmissionTime.Before(cutoffTime) {
+	case lastTransmissionTime.Before(cutoffTime):
 		status.Status = entities.JobStatusStale
-	} else {
+	default:
 		status.Status = entities.JobStatusFound
 	}
 	

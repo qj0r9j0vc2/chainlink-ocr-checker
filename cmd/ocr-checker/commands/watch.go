@@ -1,3 +1,5 @@
+// Package commands provides CLI command implementations for the OCR checker tool.
+// It contains the fetch, parse, watch, and version commands with their associated flags and handlers.
 package commands
 
 import (
@@ -14,7 +16,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// NewWatchCommand creates the watch command
+// NewWatchCommand creates the watch command.
 func NewWatchCommand(container *config.Container) *cobra.Command {
 	var (
 		outputFormat string
@@ -27,13 +29,13 @@ func NewWatchCommand(container *config.Container) *cobra.Command {
 		Long: `Monitors transmitter participation across all associated OCR2 jobs.
 Checks recent rounds for activity and reports job status (Found, Stale, Missing, etc.).`,
 		Args: cobra.RangeArgs(2, 3),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			// Check if database is configured
+		RunE: func(_ *cobra.Command, args []string) error {
+			// Check if database is configured.
 			if container.WatchTransmittersUseCase == nil {
 				return fmt.Errorf("database configuration required for watch command")
 			}
 			
-			// Parse arguments
+			// Parse arguments.
 			transmitterAddr := common.HexToAddress(args[0])
 			
 			roundsToCheck, err := parseInt(args[1])
@@ -41,7 +43,7 @@ Checks recent rounds for activity and reports job status (Found, Stale, Missing,
 				return fmt.Errorf("invalid rounds to check: %w", err)
 			}
 			
-			// Days to ignore is optional
+			// Days to ignore is optional.
 			if len(args) > 2 {
 				daysToIgnore, err = parseInt(args[2])
 				if err != nil {
@@ -49,10 +51,10 @@ Checks recent rounds for activity and reports job status (Found, Stale, Missing,
 				}
 			}
 			
-			// Create context
+			// Create context.
 			ctx := context.Background()
 			
-			// Execute use case
+			// Execute use case.
 			params := interfaces.WatchTransmittersParams{
 				TransmitterAddress: transmitterAddr,
 				RoundsToCheck:      roundsToCheck,
@@ -69,24 +71,24 @@ Checks recent rounds for activity and reports job status (Found, Stale, Missing,
 				return fmt.Errorf("failed to watch transmitter: %w", err)
 			}
 			
-			// Display results
-			if outputFormat == "json" {
+			// Display results.
+			if outputFormat == OutputFormatJSON {
 				return displayWatchResultsJSON(result)
 			}
 			return displayWatchResultsTable(result)
 		},
 	}
 	
-	// Add flags
+	// Add flags.
 	cmd.Flags().StringVarP(&outputFormat, "output", "o", "table", "Output format (table, json)")
 	cmd.Flags().IntVarP(&daysToIgnore, "days", "d", 0, "Days to ignore for stale detection")
 	
 	return cmd
 }
 
-// displayWatchResultsTable displays watch results in table format
+// displayWatchResultsTable displays watch results in table format.
 func displayWatchResultsTable(result *interfaces.WatchTransmittersResult) error {
-	// Print summary
+	// Print summary.
 	fmt.Printf("\nTransmitter Watch Summary\n")
 	fmt.Printf("========================\n")
 	fmt.Printf("Total Jobs: %d\n", result.Summary.TotalJobs)
@@ -97,10 +99,10 @@ func displayWatchResultsTable(result *interfaces.WatchTransmittersResult) error 
 	fmt.Printf("Error: %d\n", result.Summary.ErrorJobs)
 	fmt.Printf("\n")
 	
-	// Print detailed status table
+	// Print detailed status table.
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Status\tJob ID\tContract\tLast Round\tLast Seen")
-	fmt.Fprintln(w, "------\t------\t--------\t----------\t---------")
+	_, _ = fmt.Fprintln(w, "Status\tJob ID\tContract\tLast Round\tLast Seen")
+	_, _ = fmt.Fprintln(w, "------\t------\t--------\t----------\t---------")
 	
 	for _, status := range result.Statuses {
 		lastSeen := "Never"
@@ -113,7 +115,7 @@ func displayWatchResultsTable(result *interfaces.WatchTransmittersResult) error 
 			statusStr = fmt.Sprintf("%s (%v)", status.Status, status.Error)
 		}
 		
-		fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\n",
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\n",
 			statusStr,
 			truncate(status.JobID, 20),
 			truncate(status.ContractAddress.Hex(), 20),
@@ -125,21 +127,21 @@ func displayWatchResultsTable(result *interfaces.WatchTransmittersResult) error 
 	return w.Flush()
 }
 
-// displayWatchResultsJSON displays watch results in JSON format
+// displayWatchResultsJSON displays watch results in JSON format.
 func displayWatchResultsJSON(result *interfaces.WatchTransmittersResult) error {
 	encoder := json.NewEncoder(os.Stdout)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(result)
 }
 
-// parseInt parses a string to int
+// parseInt parses a string to int.
 func parseInt(s string) (int, error) {
 	var v int
 	_, err := fmt.Sscanf(s, "%d", &v)
 	return v, err
 }
 
-// truncate truncates a string to the specified length
+// truncate truncates a string to the specified length.
 func truncate(s string, maxLen int) string {
 	if len(s) <= maxLen {
 		return s

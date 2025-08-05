@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"chainlink-ocr-checker/domain/entities"
+	"chainlink-ocr-checker/domain/errors"
 	"chainlink-ocr-checker/domain/interfaces"
 	"chainlink-ocr-checker/test/helpers"
 	"chainlink-ocr-checker/test/mocks"
@@ -78,7 +79,10 @@ func TestFetchTransmissionsUseCase_Execute(t *testing.T) {
 		result, err := useCase.Execute(ctx, params)
 		require.Error(t, err)
 		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "contract address is required")
+		assert.Contains(t, err.Error(), "validation failed for 1 fields")
+		validErr, ok := err.(*errors.ValidationError)
+		require.True(t, ok)
+		assert.Contains(t, validErr.Fields["contract_address"][0], "contract address is required")
 	})
 	
 	t.Run("validation error - invalid round range", func(t *testing.T) {
@@ -91,7 +95,10 @@ func TestFetchTransmissionsUseCase_Execute(t *testing.T) {
 		result, err := useCase.Execute(ctx, params)
 		require.Error(t, err)
 		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "invalid range")
+		assert.Contains(t, err.Error(), "validation failed for 1 fields")
+		validErr, ok := err.(*errors.ValidationError)
+		require.True(t, ok)
+		assert.Contains(t, validErr.Fields["rounds"][0], "invalid range")
 	})
 	
 	t.Run("fetch error", func(t *testing.T) {

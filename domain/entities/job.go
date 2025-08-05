@@ -1,3 +1,5 @@
+// Package entities contains the core domain entities for the OCR checker application.
+// It defines structures for jobs, transmissions, and related data types.
 package entities
 
 import (
@@ -7,7 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-// Job represents a Chainlink OCR2 job
+// Job represents a Chainlink OCR2 job.
 type Job struct {
 	ID                     int32
 	ExternalJobID          string
@@ -18,10 +20,10 @@ type Job struct {
 	UpdatedAt              time.Time
 }
 
-// OracleSpec represents the oracle specification
+// OracleSpec represents the oracle specification.
 type OracleSpec struct {
 	ContractAddress          common.Address
-	EVMChainID               *big.Int
+	EVMChainID               *big.Int `gorm:"-"`
 	TransmitterAddress       common.Address
 	DatabaseTimeout          time.Duration
 	DatabaseMaxIdleConns     int
@@ -29,7 +31,7 @@ type OracleSpec struct {
 	ObservationGracePeriod   time.Duration
 }
 
-// JobFilter represents filters for querying jobs
+// JobFilter represents filters for querying jobs.
 type JobFilter struct {
 	TransmitterAddress *common.Address
 	ContractAddress    *common.Address
@@ -37,7 +39,7 @@ type JobFilter struct {
 	Active             *bool
 }
 
-// JobSearchResult represents the result of a job search
+// JobSearchResult represents the result of a job search.
 type JobSearchResult struct {
 	Jobs       []Job
 	TotalCount int

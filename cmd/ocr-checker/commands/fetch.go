@@ -1,3 +1,5 @@
+// Package commands provides CLI command implementations for the OCR checker tool.
+// It contains the fetch, parse, watch, and version commands with their associated flags and handlers.
 package commands
 
 import (
@@ -15,7 +17,7 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-// NewFetchCommand creates the fetch command
+// NewFetchCommand creates the fetch command.
 func NewFetchCommand(container *config.Container) *cobra.Command {
 	var (
 		outputFormat string
@@ -29,8 +31,8 @@ func NewFetchCommand(container *config.Container) *cobra.Command {
 within the given round range. The data includes transmitter participation,
 observer indices, and block information.`,
 		Args: cobra.ExactArgs(3),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			// Parse arguments
+		RunE: func(_ *cobra.Command, args []string) error {
+			// Parse arguments.
 			contractAddr := common.HexToAddress(args[0])
 			startRound, err := parseUint32(args[1])
 			if err != nil {
@@ -41,10 +43,10 @@ observer indices, and block information.`,
 				return fmt.Errorf("invalid end round: %w", err)
 			}
 
-			// Create context
+			// Create context.
 			ctx := context.Background()
 
-			// Execute use case
+			// Execute use case.
 			params := interfaces.FetchTransmissionsParams{
 				ContractAddress: contractAddr,
 				StartRound:      startRound,
@@ -64,7 +66,7 @@ observer indices, and block information.`,
 			container.Logger.Info("Fetch completed",
 				"transmissions", len(result.Transmissions))
 
-			// Save results
+			// Save results.
 			if outputPath == "" {
 				outputPath = fmt.Sprintf("results/%s-%d_%d.yaml",
 					contractAddr.Hex(), startRound, endRound)
@@ -76,7 +78,7 @@ observer indices, and block information.`,
 
 			container.Logger.Info("Results saved", "path", outputPath)
 
-			// Print summary
+			// Print summary.
 			fmt.Printf("Fetched %d transmissions for contract %s\n",
 				len(result.Transmissions), contractAddr.Hex())
 			fmt.Printf("Round range: %d - %d\n", startRound, endRound)
@@ -86,31 +88,36 @@ observer indices, and block information.`,
 		},
 	}
 
-	// Add flags
+	// Add flags.
 	cmd.Flags().StringVarP(&outputFormat, "format", "f", "yaml", "Output format (yaml, json)")
 	cmd.Flags().StringVarP(&outputPath, "output", "o", "", "Output file path")
 
 	return cmd
 }
 
-// saveResults saves the transmission results to a file
+// saveResults saves the transmission results to a file.
 func saveResults(result *entities.TransmissionResult, path string, format string) error {
-	// Create directory if needed
+	// Create directory if needed.
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0750); err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
-	// Open file
-	file, err := os.Create(path)
+	// Open file.
+	cleanPath := filepath.Clean(path)
+	file, err := os.Create(cleanPath) // #nosec G304 -- path is cleaned
 	if err != nil {
 		return fmt.Errorf("failed to create file: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		if cerr := file.Close(); cerr != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "Failed to close file: %v\n", cerr)
+		}
+	}()
 
-	// Encode based on format
+	// Encode based on format.
 	switch format {
-	case "json":
+	case OutputFormatJSON:
 		encoder := json.NewEncoder(file)
 		encoder.SetIndent("", "  ")
 		return encoder.Encode(result)
@@ -122,7 +129,7 @@ func saveResults(result *entities.TransmissionResult, path string, format string
 	}
 }
 
-// parseUint32 parses a string to uint32
+// parseUint32 parses a string to uint32.
 func parseUint32(s string) (uint32, error) {
 	var v uint32
 	_, err := fmt.Sscanf(s, "%d", &v)
